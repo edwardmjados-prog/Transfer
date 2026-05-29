@@ -1,0 +1,263 @@
+# ============================================================
+# FIND SIMILAR HOSPITALS WITHOUT DROPPING ROWS
+# One row = one hospital
+# Keeps every row and creates PROPENSITY_SCORE for all rows
+# ============================================================
+
+import pandas as pd
+import numpy as np
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import OneHotEncoder, StandardScaler, FunctionTransformer
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.neighbors import NearestNeighbors
+
+
+# ============================================================
+# 1. CONFIG
+# ============================================================
+
+TARGET_AHAID = "640021"
+N_SIMILAR = 10
+
+# df should already exist
+# Example:
+# df = pd.read_csv("your_file.csv")
+
+
+# ============================================================
+# 2. COPY DATA AND PRESERVE ORIGINAL ROWS
+# ============================================================
+
+df = df.copy()
+
+# Preserve original row order
+df["_ORIGINAL_ROW_NUM"] = range(len(df))
+
+original_n_rows = len(df)
+
+# Clean AHAID
+df["AHAID"] = df["AHAID"].astype(str).str.strip()
+
+# Create target hospital indicator
+df["CH_HOSPITAL"] = (df["AHAID"] == TARGET_AHAID).astype(int)
+
+
+# ============================================================
+# 3. BASIC CHECKS
+# ============================================================
+
+target_count = df["CH_HOSPITAL"].sum()
+
+if target_count == 0:
+    raise ValueError(f"No hospital found with AHAID = {TARGET_AHAID}")
+
+if target_count > 1:
+    raise ValueError(f"More than one row found with AHAID = {TARGET_AHAID}. Expected one hospital per row.")
+
+print(f"Original number of rows: {original_n_rows}")
+print(f"Target hospital found: AHAID {TARGET_AHAID}")
+
+
+# ============================================================
+# 4. DEFINE COVARIATES
+# ============================================================
+
+exclude_cols = [
+    "AHAID",
+    "Hospital",
+    "CH_HOSPITAL",
+    "_ORIGINAL_ROW_NUM"
+]
+
+covariates = [
+    col for col in df.columns
+    if col not in exclude_cols
+]
+
+X = df[covariates].copy()
+y = df["CH_HOSPITAL"].astype(int)
+
+print(f"Number of covariates used: {len(covariates)}")
+
+
+# ============================================================
+# 5. REPLACE INF VALUES WITHOUT DROPPING ROWS
+# ============================================================
+
+# Replace positive and negative infinity with NaN
+# These will be imputed later
+X = X.replace([np.inf, -np.inf], np.nan)
+
+
+# ============================================================
+# 6. IDENTIFY NUMERIC AND CATEGORICAL COLUMNS
+# ============================================================
+
+numeric_features = X.select_dtypes(include=["number"]).columns.tolist()
+categorical_features = X.select_dtypes(exclude=["number"]).columns.tolist()
+
+print(f"Numeric covariates: {len(numeric_features)}")
+print(f"Categorical covariates: {len(categorical_features)}")
+
+
+# ============================================================
+# 7. PREPROCESSING PIPELINE
+# ============================================================
+
+# Numeric columns:
+#   - Replace inf with NaN
+#   - Fill missing values using median
+#   - Scale values
+numeric_transformer = Pipeline(
+    steps=[
+        ("replace_inf", FunctionTransformer(
+            lambda x: np.where(np.isinf(x), np.nan, x),
+            feature_names_out="one-to-one"
+        )),
+        ("imputer", SimpleImputer(strategy="median")),
+        ("scaler", StandardScaler())
+    ]
+)
+
+# Categorical columns:
+#   - Fill missing values using most common value
+#   - Convert categories to dummy variables
+categorical_transformer = Pipeline(
+    steps=[
+        ("imputer", SimpleImputer(strategy="most_frequent")),
+        ("onehot", OneHotEncoder(drop="first", handle_unknown="ignore"))
+    ]
+)
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        ("num", numeric_transformer, numeric_features),
+        ("cat", categorical_transformer, categorical_features)
+    ],
+    remainder="drop"
+)
+
+
+# ============================================================
+# 8. PROPENSITY SCORE MODEL
+# ============================================================
+
+ps_model = Pipeline(
+    steps=[
+        ("preprocessor", preprocessor),
+        (
+            "logit",
+            LogisticRegression(
+                max_iter=5000,
+                solver="lbfgs",
+                class_weight="balanced"
+            )
+        )
+    ]
+)
+
+ps_model.fit(X, y)
+
+# Predicted probability of being the target hospital
+df["PROPENSITY_SCORE"] = ps_model.predict_proba(X)[:, 1]
+
+
+# ============================================================
+# 9. CONFIRM NO ROWS WERE DISCARDED
+# ============================================================
+
+final_n_rows = len(df)
+
+if final_n_rows != original_n_rows:
+    raise ValueError(
+        f"Rows were lost. Original rows: {original_n_rows}, final rows: {final_n_rows}"
+    )
+
+if df["PROPENSITY_SCORE"].isna().any():
+    raise ValueError("Some rows did not receive a propensity score.")
+
+print(f"Final number of rows: {final_n_rows}")
+print("No rows were discarded.")
+print("Every row has a propensity score.")
+
+
+# ============================================================
+# 10. FIND HOSPITALS CLOSEST BY PROPENSITY SCORE
+# ============================================================
+
+target_score = df.loc[df["CH_HOSPITAL"] == 1, "PROPENSITY_SCORE"].iloc[0]
+
+df["PS_ABS_DIFF"] = abs(df["PROPENSITY_SCORE"] - target_score)
+
+similar_by_ps = (
+    df[df["CH_HOSPITAL"] == 0]
+    .sort_values("PS_ABS_DIFF")
+    .head(N_SIMILAR)
+    .copy()
+)
+
+
+# ============================================================
+# 11. FIND HOSPITALS CLOSEST BY NEAREST-NEIGHBOR DISTANCE
+# ============================================================
+
+X_processed = ps_model.named_steps["preprocessor"].transform(X)
+
+nn = NearestNeighbors(
+    n_neighbors=N_SIMILAR + 1,
+    metric="euclidean"
+)
+
+nn.fit(X_processed)
+
+target_position = df.index[df["AHAID"] == TARGET_AHAID][0]
+
+distances, indices = nn.kneighbors(X_processed[target_position])
+
+similar_by_nn = df.iloc[indices[0]].copy()
+similar_by_nn["DISTANCE"] = distances[0]
+
+# Remove the target hospital itself
+similar_by_nn = similar_by_nn[similar_by_nn["CH_HOSPITAL"] == 0].head(N_SIMILAR)
+
+
+# ============================================================
+# 12. FINAL OUTPUTS
+# ============================================================
+
+print("\nTarget hospital propensity score:")
+print(target_score)
+
+print("\nTop similar hospitals by propensity score:")
+print(
+    similar_by_ps[
+        ["AHAID", "Hospital", "PROPENSITY_SCORE", "PS_ABS_DIFF"]
+    ]
+)
+
+print("\nTop similar hospitals by nearest-neighbor distance:")
+print(
+    similar_by_nn[
+        ["AHAID", "Hospital", "PROPENSITY_SCORE", "DISTANCE"]
+    ]
+)
+
+
+# ============================================================
+# 13. OPTIONAL EXPORTS
+# ============================================================
+
+# Full dataset with propensity score for every hospital
+df.to_csv("all_hospitals_with_propensity_scores.csv", index=False)
+
+# Top matches only
+similar_by_ps.to_csv("similar_hospitals_by_propensity_score.csv", index=False)
+similar_by_nn.to_csv("similar_hospitals_by_nearest_neighbors.csv", index=False)
+
+print("\nFiles saved:")
+print("all_hospitals_with_propensity_scores.csv")
+print("similar_hospitals_by_propensity_score.csv")
+print("similar_hospitals_by_nearest_neighbors.csv")
