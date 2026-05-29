@@ -1,8 +1,30 @@
 # ============================================================
-# CHILDREN'S HOSPITAL SPECIALTY POINT MATCHING
-# Gives points to ALL hospitals for each specialty field
-# One row = one hospital
+# CHILDREN'S HOSPITAL SPECIALTY-BASED COHORT MATCHING
 # ============================================================
+#
+# Purpose:
+#   Find hospitals similar to one target children's hospital.
+#
+# Method:
+#   1. Import hospital-level CSV
+#   2. Identify specialty fields such as:
+#        Number of Patients - Cancer
+#        Commitment to clinical research - Cancer
+#        Expert Opinion - Cancer
+#        Number of Procedures - Diabetes
+#   3. Compare every hospital to the target hospital for each field
+#   4. Give all hospitals points based on closeness
+#   5. Use equal weight for every field
+#   6. Sum points across all fields
+#   7. Return the highest-scoring comparison cohort
+#
+# Output files:
+#   matched_childrens_hospital_cohort_summary.csv
+#   all_hospitals_with_specialty_match_scores.csv
+#   specialty_field_mapping.csv
+#
+# ============================================================
+
 
 import pandas as pd
 import numpy as np
@@ -12,20 +34,46 @@ import numpy as np
 # 1. CONFIG
 # ============================================================
 
+# Change this to your actual CSV file path
+FILE_PATH = r"C:\Users\YourName\Documents\your_file.csv"
+
+# Target hospital AHAID
 TARGET_AHAID = "640021"
 
+# Column names in your file
 AHAID_COL = "AHAID"
 HOSPITAL_COL = "Hospital"
 
+# Number of hospitals to return in final cohort
 FINAL_COHORT_SIZE = 20
+
+# Maximum points each field can contribute
+# Since all weights are equal, each field can contribute up to 10 points
 MAX_POINTS_PER_FIELD = 10
 
-# Anything with " - " will be treated as a matching field
+# Your matching columns use this format:
+#   Number of Patients - Cancer
+#   Expert Opinion - Urology
+#   Commitment to clinical research - Mental Health
 FIELD_SEPARATOR = " - "
 
 
 # ============================================================
-# 2. COPY DATA AND CLEAN COLUMN NAMES
+# 2. IMPORT CSV
+# ============================================================
+
+df = pd.read_csv(
+    FILE_PATH,
+    dtype={AHAID_COL: str}
+)
+
+print("CSV imported successfully.")
+print(f"Rows imported: {len(df)}")
+print(f"Columns imported: {len(df.columns)}")
+
+
+# ============================================================
+# 3. COPY DATA AND CLEAN COLUMN NAMES
 # ============================================================
 
 match_df = df.copy()
@@ -38,26 +86,57 @@ match_df.columns = (
     .str.replace(r"\s+", " ", regex=True)
 )
 
-match_df[AHAID_COL] = match_df[AHAID_COL].astype(str).str.strip()
+# Clean AHAID
+match_df[AHAID_COL] = (
+    match_df[AHAID_COL]
+    .astype(str)
+    .str.strip()
+)
 
+# Create target hospital flag
 match_df["TARGET_HOSPITAL"] = (
     match_df[AHAID_COL] == TARGET_AHAID
 ).astype(int)
 
+
+# ============================================================
+# 4. BASIC CHECKS
+# ============================================================
+
 target_count = match_df["TARGET_HOSPITAL"].sum()
 
 if target_count == 0:
-    raise ValueError(f"No hospital found with {AHAID_COL} = {TARGET_AHAID}")
+    raise ValueError(
+        f"No hospital found with {AHAID_COL} = {TARGET_AHAID}. "
+        f"Check TARGET_AHAID or the {AHAID_COL} column."
+    )
 
 if target_count > 1:
-    raise ValueError(f"More than one hospital found with {AHAID_COL} = {TARGET_AHAID}")
+    raise ValueError(
+        f"More than one hospital found with {AHAID_COL} = {TARGET_AHAID}. "
+        "Expected one row per hospital."
+    )
 
-print(f"Target hospital found: {TARGET_AHAID}")
+print(f"\nTarget hospital found: {TARGET_AHAID}")
+
+if HOSPITAL_COL in match_df.columns:
+    target_name = match_df.loc[
+        match_df["TARGET_HOSPITAL"] == 1,
+        HOSPITAL_COL
+    ].iloc[0]
+
+    print(f"Target hospital name: {target_name}")
 
 
 # ============================================================
-# 3. FIND SPECIALTY MATCHING FIELDS
+# 5. FIND SPECIALTY MATCHING FIELDS
 # ============================================================
+
+# Automatically finds columns with " - " in the name.
+# This captures fields like:
+#   Number of Patients - Cancer
+#   Commitment to clinical research - Cancer
+#   Expert Opinion - Cancer
 
 matching_vars = [
     col for col in match_df.columns
@@ -65,15 +144,18 @@ matching_vars = [
 ]
 
 if len(matching_vars) == 0:
-    raise ValueError("No specialty matching fields found.")
+    raise ValueError(
+        f"No specialty matching fields found using separator '{FIELD_SEPARATOR}'. "
+        "Check your column names."
+    )
 
-print("\nMatching fields found:")
+print("\nSpecialty matching fields found:")
 for col in matching_vars:
-    print(col)
+    print(f"  - {col}")
 
 
 # ============================================================
-# 4. PARSE METRIC AND SPECIALTY FROM COLUMN NAMES
+# 6. PARSE METRIC AND SPECIALTY FROM FIELD NAMES
 # ============================================================
 
 field_map = []
@@ -89,74 +171,78 @@ for col in matching_vars:
 
 field_map_df = pd.DataFrame(field_map)
 
-print("\nParsed fields:")
+
+# ============================================================
+# 7. DEFINE EQUAL WEIGHTS AND SCORING METHOD
+# ============================================================
+
+def get_scoring_method(metric_name):
+    """
+    Determines whether to use percent difference or absolute difference.
+
+    For volume/count measures, percent difference is usually better.
+    For ranking/research/opinion fields, absolute difference is usually better.
+    """
+
+    metric_lower = str(metric_name).lower().strip()
+
+    volume_terms = [
+        "number of patients",
+        "number of procedures",
+        "number of surgeries",
+        "number of tests",
+        "minimally invasive",
+        "catheter",
+        "norwood",
+        "high complexity",
+        "epilepsy",
+        "workups",
+        "treatments"
+    ]
+
+    if any(term in metric_lower for term in volume_terms):
+        return "percent"
+
+    return "absolute"
+
+
+# Equal weight for every field
+field_map_df["WEIGHT"] = 1.0
+
+# Decide whether each field uses percent or absolute difference
+field_map_df["SCORING_METHOD"] = field_map_df["METRIC"].apply(get_scoring_method)
+
+print("\nField mapping, equal weights, and scoring methods:")
 print(field_map_df)
 
 
 # ============================================================
-# 5. SET WEIGHTS BY METRIC TYPE
-# ============================================================
-
-def get_metric_weight(metric_name):
-    """
-    Assigns weights based on the type of measure.
-    Higher weight = more influence on final cohort.
-    """
-
-    metric_lower = metric_name.lower()
-
-    if "number of patients" in metric_lower:
-        return 3.0
-
-    if "number of procedures" in metric_lower:
-        return 2.5
-
-    if "number of surgeries" in metric_lower:
-        return 2.5
-
-    if "number of tests" in metric_lower:
-        return 2.0
-
-    if "catheter" in metric_lower:
-        return 2.0
-
-    if "norwood" in metric_lower:
-        return 2.0
-
-    if "expert opinion" in metric_lower:
-        return 2.0
-
-    if "commitment to clinical research" in metric_lower:
-        return 2.0
-
-    return 1.0
-
-
-# ============================================================
-# 6. INITIALIZE SCORING COLUMNS
+# 8. INITIALIZE SCORING COLUMNS
 # ============================================================
 
 match_df["TOTAL_MATCH_POINTS"] = 0.0
 match_df["NUM_FIELDS_SCORED"] = 0
 
 point_cols = []
+rank_cols = []
+abs_diff_cols = []
+pct_diff_cols = []
 
 
 # ============================================================
-# 7. SCORE EVERY FIELD
+# 9. SCORE EVERY FIELD
 # ============================================================
-
-target_row = match_df.loc[
-    match_df["TARGET_HOSPITAL"] == 1
-].iloc[0]
 
 for _, row in field_map_df.iterrows():
 
     var = row["COLUMN"]
     metric = row["METRIC"]
     specialty = row["SPECIALTY"]
+    weight = row["WEIGHT"]              # Always 1.0
+    scoring_method = row["SCORING_METHOD"]
 
-    # Convert field to numeric
+    # Convert field to numeric.
+    # Non-numeric values become missing.
     match_df[var] = pd.to_numeric(match_df[var], errors="coerce")
 
     target_value = match_df.loc[
@@ -164,14 +250,22 @@ for _, row in field_map_df.iterrows():
         var
     ].iloc[0]
 
+    # Skip this field if the target hospital has missing value
     if pd.isna(target_value):
         print(f"Skipping {var}: target value is missing.")
         continue
 
+    # Create safe output column names
     clean_var_name = (
-        var.replace(" ", "_")
+        var.strip()
+        .replace(" ", "_")
         .replace("-", "")
         .replace("/", "_")
+        .replace("(", "")
+        .replace(")", "")
+        .replace(",", "")
+        .replace(":", "")
+        .replace(";", "")
         .replace("__", "_")
     )
 
@@ -180,37 +274,32 @@ for _, row in field_map_df.iterrows():
     rank_col = f"{clean_var_name}_RANK"
     points_col = f"{clean_var_name}_POINTS"
 
-    # Calculate absolute difference
+    # Absolute difference from target hospital
     match_df[abs_diff_col] = (
         match_df[var] - target_value
     ).abs()
 
-    # Use percent difference for volume/procedure fields when possible
-    metric_lower = metric.lower()
-
-    if target_value != 0 and (
-        "number of patients" in metric_lower
-        or "number of procedures" in metric_lower
-        or "number of surgeries" in metric_lower
-        or "number of tests" in metric_lower
-        or "catheter" in metric_lower
-        or "norwood" in metric_lower
-    ):
+    # Percent difference from target hospital
+    if target_value != 0:
         match_df[pct_diff_col] = (
             match_df[abs_diff_col] / abs(target_value)
         )
-        diff_for_scoring = pct_diff_col
-
     else:
         match_df[pct_diff_col] = np.nan
+
+    # Decide which difference to use for ranking/scoring
+    if scoring_method == "percent" and target_value != 0:
+        diff_for_scoring = pct_diff_col
+    else:
         diff_for_scoring = abs_diff_col
 
-    # Exclude target hospital from candidate scoring
+    # Candidate hospitals only.
+    # This does NOT remove rows from the full dataset.
+    # It only excludes missing values for this one field's ranking.
     candidates = match_df[
         match_df["TARGET_HOSPITAL"] == 0
     ].copy()
 
-    # Only skip missing values for this one field
     candidates = candidates[
         candidates[diff_for_scoring].notna()
     ].copy()
@@ -219,13 +308,18 @@ for _, row in field_map_df.iterrows():
         print(f"Skipping {var}: no non-missing candidate values.")
         continue
 
-    # Rank by closeness
+    # Rank all hospitals by closeness to target for this field
     candidates = candidates.sort_values(diff_for_scoring).copy()
     candidates[rank_col] = range(1, len(candidates) + 1)
 
+    # ------------------------------------------------------------
     # Give points to ALL hospitals
-    # Closest gets MAX_POINTS_PER_FIELD
-    # Farthest gets close to 0
+    # ------------------------------------------------------------
+    # Closest hospital gets MAX_POINTS_PER_FIELD.
+    # Farthest hospital gets close to 0.
+    # Everyone else gets points based on rank.
+    # ------------------------------------------------------------
+
     if len(candidates) == 1:
         candidates[points_col] = MAX_POINTS_PER_FIELD
     else:
@@ -234,31 +328,43 @@ for _, row in field_map_df.iterrows():
             * (1 - ((candidates[rank_col] - 1) / (len(candidates) - 1)))
         )
 
-    # Apply metric weight
-    weight = get_metric_weight(metric)
+    # Equal weight applied here
     candidates[points_col] = candidates[points_col] * weight
 
-    # Add fields back to main dataframe
+    # Create fields in full dataset
     match_df[rank_col] = np.nan
     match_df[points_col] = 0.0
 
+    # Add candidate ranks and points back to full dataset
     match_df.loc[candidates.index, rank_col] = candidates[rank_col]
     match_df.loc[candidates.index, points_col] = candidates[points_col]
 
-    # Add to total score
+    # Target hospital gets zero points because it is not a candidate
+    match_df.loc[
+        match_df["TARGET_HOSPITAL"] == 1,
+        points_col
+    ] = 0.0
+
+    # Add to total match score
     match_df["TOTAL_MATCH_POINTS"] += match_df[points_col]
 
-    # Count fields where hospital received points
+    # Count whether each hospital was scored for this field
     match_df["NUM_FIELDS_SCORED"] += (
         match_df[points_col] > 0
     ).astype(int)
 
     point_cols.append(points_col)
+    rank_cols.append(rank_col)
+    abs_diff_cols.append(abs_diff_col)
+    pct_diff_cols.append(pct_diff_col)
 
 
 # ============================================================
-# 8. CREATE NORMALIZED SCORE
+# 10. CREATE NORMALIZED SCORE
 # ============================================================
+
+# AVG_MATCH_POINTS helps when some hospitals are missing fields.
+# Higher is better.
 
 match_df["AVG_MATCH_POINTS"] = np.where(
     match_df["NUM_FIELDS_SCORED"] > 0,
@@ -268,7 +374,7 @@ match_df["AVG_MATCH_POINTS"] = np.where(
 
 
 # ============================================================
-# 9. FINAL MATCHED COHORT
+# 11. CREATE FINAL MATCHED COHORT
 # ============================================================
 
 candidate_matches = match_df[
@@ -292,7 +398,7 @@ matched_cohort = candidate_matches.head(FINAL_COHORT_SIZE).copy()
 
 
 # ============================================================
-# 10. FINAL OUTPUT
+# 12. CREATE SUMMARY OUTPUT
 # ============================================================
 
 summary_cols = [
@@ -301,8 +407,12 @@ summary_cols = [
     "TOTAL_MATCH_POINTS",
     "AVG_MATCH_POINTS",
     "NUM_FIELDS_SCORED"
-] + matching_vars
+]
 
+# Add original matching fields
+summary_cols += matching_vars
+
+# Keep only columns that exist
 summary_cols = [
     col for col in summary_cols
     if col in matched_cohort.columns
@@ -310,15 +420,90 @@ summary_cols = [
 
 matched_cohort_summary = matched_cohort[summary_cols].copy()
 
-print("\nFinal matched cohort:")
+
+# ============================================================
+# 13. CREATE DETAILED OUTPUT FOR ALL HOSPITALS
+# ============================================================
+
+detailed_cols = [
+    AHAID_COL,
+    HOSPITAL_COL,
+    "TARGET_HOSPITAL",
+    "TOTAL_MATCH_POINTS",
+    "AVG_MATCH_POINTS",
+    "NUM_FIELDS_SCORED"
+]
+
+detailed_cols += matching_vars
+detailed_cols += point_cols
+detailed_cols += rank_cols
+detailed_cols += abs_diff_cols
+detailed_cols += pct_diff_cols
+
+detailed_cols = [
+    col for col in detailed_cols
+    if col in match_df.columns
+]
+
+all_hospitals_detailed = match_df[detailed_cols].copy()
+
+
+# ============================================================
+# 14. PRINT RESULTS
+# ============================================================
+
+print("\n============================================================")
+print("FINAL MATCHED COHORT")
+print("============================================================")
+
 print(matched_cohort_summary)
+
+print("\n============================================================")
+print("TARGET HOSPITAL")
+print("============================================================")
+
+target_display_cols = [
+    AHAID_COL,
+    HOSPITAL_COL
+] + matching_vars
+
+target_display_cols = [
+    col for col in target_display_cols
+    if col in match_df.columns
+]
+
+print(
+    match_df.loc[
+        match_df["TARGET_HOSPITAL"] == 1,
+        target_display_cols
+    ]
+)
+
+print("\n============================================================")
+print("SCORING FIELD SUMMARY")
+print("============================================================")
+
+print(field_map_df)
+
+print("\n============================================================")
+print("SCORING SUMMARY")
+print("============================================================")
+
+print(f"Number of matching fields scored: {len(point_cols)}")
+print(f"Maximum possible score: {len(point_cols) * MAX_POINTS_PER_FIELD}")
+print(f"Final cohort size: {len(matched_cohort_summary)}")
+
+
+# ============================================================
+# 15. EXPORT OUTPUTS
+# ============================================================
 
 matched_cohort_summary.to_csv(
     "matched_childrens_hospital_cohort_summary.csv",
     index=False
 )
 
-match_df.to_csv(
+all_hospitals_detailed.to_csv(
     "all_hospitals_with_specialty_match_scores.csv",
     index=False
 )
