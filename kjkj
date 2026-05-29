@@ -1,18 +1,11 @@
 # ============================================================
-# FIND SIMILAR HOSPITALS WITHOUT DROPPING ROWS
+# CHILDREN'S HOSPITAL SPECIALTY POINT MATCHING
+# Gives points to ALL hospitals for each specialty field
 # One row = one hospital
-# Keeps every row and creates PROPENSITY_SCORE for all rows
 # ============================================================
 
 import pandas as pd
 import numpy as np
-
-from sklearn.linear_model import LogisticRegression
-from sklearn.preprocessing import OneHotEncoder, StandardScaler, FunctionTransformer
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.impute import SimpleImputer
-from sklearn.neighbors import NearestNeighbors
 
 
 # ============================================================
@@ -20,244 +13,322 @@ from sklearn.neighbors import NearestNeighbors
 # ============================================================
 
 TARGET_AHAID = "640021"
-N_SIMILAR = 10
 
-# df should already exist
-# Example:
-# df = pd.read_csv("your_file.csv")
+AHAID_COL = "AHAID"
+HOSPITAL_COL = "Hospital"
 
+FINAL_COHORT_SIZE = 20
+MAX_POINTS_PER_FIELD = 10
 
-# ============================================================
-# 2. COPY DATA AND PRESERVE ORIGINAL ROWS
-# ============================================================
-
-df = df.copy()
-
-# Preserve original row order
-df["_ORIGINAL_ROW_NUM"] = range(len(df))
-
-original_n_rows = len(df)
-
-# Clean AHAID
-df["AHAID"] = df["AHAID"].astype(str).str.strip()
-
-# Create target hospital indicator
-df["CH_HOSPITAL"] = (df["AHAID"] == TARGET_AHAID).astype(int)
+# Anything with " - " will be treated as a matching field
+FIELD_SEPARATOR = " - "
 
 
 # ============================================================
-# 3. BASIC CHECKS
+# 2. COPY DATA AND CLEAN COLUMN NAMES
 # ============================================================
 
-target_count = df["CH_HOSPITAL"].sum()
+match_df = df.copy()
+
+# Clean column names
+match_df.columns = (
+    match_df.columns
+    .astype(str)
+    .str.strip()
+    .str.replace(r"\s+", " ", regex=True)
+)
+
+match_df[AHAID_COL] = match_df[AHAID_COL].astype(str).str.strip()
+
+match_df["TARGET_HOSPITAL"] = (
+    match_df[AHAID_COL] == TARGET_AHAID
+).astype(int)
+
+target_count = match_df["TARGET_HOSPITAL"].sum()
 
 if target_count == 0:
-    raise ValueError(f"No hospital found with AHAID = {TARGET_AHAID}")
+    raise ValueError(f"No hospital found with {AHAID_COL} = {TARGET_AHAID}")
 
 if target_count > 1:
-    raise ValueError(f"More than one row found with AHAID = {TARGET_AHAID}. Expected one hospital per row.")
+    raise ValueError(f"More than one hospital found with {AHAID_COL} = {TARGET_AHAID}")
 
-print(f"Original number of rows: {original_n_rows}")
-print(f"Target hospital found: AHAID {TARGET_AHAID}")
+print(f"Target hospital found: {TARGET_AHAID}")
 
 
 # ============================================================
-# 4. DEFINE COVARIATES
+# 3. FIND SPECIALTY MATCHING FIELDS
 # ============================================================
 
-exclude_cols = [
-    "AHAID",
-    "Hospital",
-    "CH_HOSPITAL",
-    "_ORIGINAL_ROW_NUM"
+matching_vars = [
+    col for col in match_df.columns
+    if FIELD_SEPARATOR in col
 ]
 
-covariates = [
-    col for col in df.columns
-    if col not in exclude_cols
-]
+if len(matching_vars) == 0:
+    raise ValueError("No specialty matching fields found.")
 
-X = df[covariates].copy()
-y = df["CH_HOSPITAL"].astype(int)
-
-print(f"Number of covariates used: {len(covariates)}")
+print("\nMatching fields found:")
+for col in matching_vars:
+    print(col)
 
 
 # ============================================================
-# 5. REPLACE INF VALUES WITHOUT DROPPING ROWS
+# 4. PARSE METRIC AND SPECIALTY FROM COLUMN NAMES
 # ============================================================
 
-# Replace positive and negative infinity with NaN
-# These will be imputed later
-X = X.replace([np.inf, -np.inf], np.nan)
+field_map = []
 
+for col in matching_vars:
+    metric, specialty = col.split(FIELD_SEPARATOR, 1)
 
-# ============================================================
-# 6. IDENTIFY NUMERIC AND CATEGORICAL COLUMNS
-# ============================================================
+    field_map.append({
+        "COLUMN": col,
+        "METRIC": metric.strip(),
+        "SPECIALTY": specialty.strip()
+    })
 
-numeric_features = X.select_dtypes(include=["number"]).columns.tolist()
-categorical_features = X.select_dtypes(exclude=["number"]).columns.tolist()
+field_map_df = pd.DataFrame(field_map)
 
-print(f"Numeric covariates: {len(numeric_features)}")
-print(f"Categorical covariates: {len(categorical_features)}")
-
-
-# ============================================================
-# 7. PREPROCESSING PIPELINE
-# ============================================================
-
-# Numeric columns:
-#   - Replace inf with NaN
-#   - Fill missing values using median
-#   - Scale values
-numeric_transformer = Pipeline(
-    steps=[
-        ("replace_inf", FunctionTransformer(
-            lambda x: np.where(np.isinf(x), np.nan, x),
-            feature_names_out="one-to-one"
-        )),
-        ("imputer", SimpleImputer(strategy="median")),
-        ("scaler", StandardScaler())
-    ]
-)
-
-# Categorical columns:
-#   - Fill missing values using most common value
-#   - Convert categories to dummy variables
-categorical_transformer = Pipeline(
-    steps=[
-        ("imputer", SimpleImputer(strategy="most_frequent")),
-        ("onehot", OneHotEncoder(drop="first", handle_unknown="ignore"))
-    ]
-)
-
-preprocessor = ColumnTransformer(
-    transformers=[
-        ("num", numeric_transformer, numeric_features),
-        ("cat", categorical_transformer, categorical_features)
-    ],
-    remainder="drop"
-)
+print("\nParsed fields:")
+print(field_map_df)
 
 
 # ============================================================
-# 8. PROPENSITY SCORE MODEL
+# 5. SET WEIGHTS BY METRIC TYPE
 # ============================================================
 
-ps_model = Pipeline(
-    steps=[
-        ("preprocessor", preprocessor),
-        (
-            "logit",
-            LogisticRegression(
-                max_iter=5000,
-                solver="lbfgs",
-                class_weight="balanced"
-            )
-        )
-    ]
-)
+def get_metric_weight(metric_name):
+    """
+    Assigns weights based on the type of measure.
+    Higher weight = more influence on final cohort.
+    """
 
-ps_model.fit(X, y)
+    metric_lower = metric_name.lower()
 
-# Predicted probability of being the target hospital
-df["PROPENSITY_SCORE"] = ps_model.predict_proba(X)[:, 1]
+    if "number of patients" in metric_lower:
+        return 3.0
+
+    if "number of procedures" in metric_lower:
+        return 2.5
+
+    if "number of surgeries" in metric_lower:
+        return 2.5
+
+    if "number of tests" in metric_lower:
+        return 2.0
+
+    if "catheter" in metric_lower:
+        return 2.0
+
+    if "norwood" in metric_lower:
+        return 2.0
+
+    if "expert opinion" in metric_lower:
+        return 2.0
+
+    if "commitment to clinical research" in metric_lower:
+        return 2.0
+
+    return 1.0
 
 
 # ============================================================
-# 9. CONFIRM NO ROWS WERE DISCARDED
+# 6. INITIALIZE SCORING COLUMNS
 # ============================================================
 
-final_n_rows = len(df)
+match_df["TOTAL_MATCH_POINTS"] = 0.0
+match_df["NUM_FIELDS_SCORED"] = 0
 
-if final_n_rows != original_n_rows:
-    raise ValueError(
-        f"Rows were lost. Original rows: {original_n_rows}, final rows: {final_n_rows}"
+point_cols = []
+
+
+# ============================================================
+# 7. SCORE EVERY FIELD
+# ============================================================
+
+target_row = match_df.loc[
+    match_df["TARGET_HOSPITAL"] == 1
+].iloc[0]
+
+for _, row in field_map_df.iterrows():
+
+    var = row["COLUMN"]
+    metric = row["METRIC"]
+    specialty = row["SPECIALTY"]
+
+    # Convert field to numeric
+    match_df[var] = pd.to_numeric(match_df[var], errors="coerce")
+
+    target_value = match_df.loc[
+        match_df["TARGET_HOSPITAL"] == 1,
+        var
+    ].iloc[0]
+
+    if pd.isna(target_value):
+        print(f"Skipping {var}: target value is missing.")
+        continue
+
+    clean_var_name = (
+        var.replace(" ", "_")
+        .replace("-", "")
+        .replace("/", "_")
+        .replace("__", "_")
     )
 
-if df["PROPENSITY_SCORE"].isna().any():
-    raise ValueError("Some rows did not receive a propensity score.")
+    abs_diff_col = f"{clean_var_name}_ABS_DIFF"
+    pct_diff_col = f"{clean_var_name}_PCT_DIFF"
+    rank_col = f"{clean_var_name}_RANK"
+    points_col = f"{clean_var_name}_POINTS"
 
-print(f"Final number of rows: {final_n_rows}")
-print("No rows were discarded.")
-print("Every row has a propensity score.")
+    # Calculate absolute difference
+    match_df[abs_diff_col] = (
+        match_df[var] - target_value
+    ).abs()
+
+    # Use percent difference for volume/procedure fields when possible
+    metric_lower = metric.lower()
+
+    if target_value != 0 and (
+        "number of patients" in metric_lower
+        or "number of procedures" in metric_lower
+        or "number of surgeries" in metric_lower
+        or "number of tests" in metric_lower
+        or "catheter" in metric_lower
+        or "norwood" in metric_lower
+    ):
+        match_df[pct_diff_col] = (
+            match_df[abs_diff_col] / abs(target_value)
+        )
+        diff_for_scoring = pct_diff_col
+
+    else:
+        match_df[pct_diff_col] = np.nan
+        diff_for_scoring = abs_diff_col
+
+    # Exclude target hospital from candidate scoring
+    candidates = match_df[
+        match_df["TARGET_HOSPITAL"] == 0
+    ].copy()
+
+    # Only skip missing values for this one field
+    candidates = candidates[
+        candidates[diff_for_scoring].notna()
+    ].copy()
+
+    if len(candidates) == 0:
+        print(f"Skipping {var}: no non-missing candidate values.")
+        continue
+
+    # Rank by closeness
+    candidates = candidates.sort_values(diff_for_scoring).copy()
+    candidates[rank_col] = range(1, len(candidates) + 1)
+
+    # Give points to ALL hospitals
+    # Closest gets MAX_POINTS_PER_FIELD
+    # Farthest gets close to 0
+    if len(candidates) == 1:
+        candidates[points_col] = MAX_POINTS_PER_FIELD
+    else:
+        candidates[points_col] = (
+            MAX_POINTS_PER_FIELD
+            * (1 - ((candidates[rank_col] - 1) / (len(candidates) - 1)))
+        )
+
+    # Apply metric weight
+    weight = get_metric_weight(metric)
+    candidates[points_col] = candidates[points_col] * weight
+
+    # Add fields back to main dataframe
+    match_df[rank_col] = np.nan
+    match_df[points_col] = 0.0
+
+    match_df.loc[candidates.index, rank_col] = candidates[rank_col]
+    match_df.loc[candidates.index, points_col] = candidates[points_col]
+
+    # Add to total score
+    match_df["TOTAL_MATCH_POINTS"] += match_df[points_col]
+
+    # Count fields where hospital received points
+    match_df["NUM_FIELDS_SCORED"] += (
+        match_df[points_col] > 0
+    ).astype(int)
+
+    point_cols.append(points_col)
 
 
 # ============================================================
-# 10. FIND HOSPITALS CLOSEST BY PROPENSITY SCORE
+# 8. CREATE NORMALIZED SCORE
 # ============================================================
 
-target_score = df.loc[df["CH_HOSPITAL"] == 1, "PROPENSITY_SCORE"].iloc[0]
-
-df["PS_ABS_DIFF"] = abs(df["PROPENSITY_SCORE"] - target_score)
-
-similar_by_ps = (
-    df[df["CH_HOSPITAL"] == 0]
-    .sort_values("PS_ABS_DIFF")
-    .head(N_SIMILAR)
-    .copy()
+match_df["AVG_MATCH_POINTS"] = np.where(
+    match_df["NUM_FIELDS_SCORED"] > 0,
+    match_df["TOTAL_MATCH_POINTS"] / match_df["NUM_FIELDS_SCORED"],
+    np.nan
 )
 
 
 # ============================================================
-# 11. FIND HOSPITALS CLOSEST BY NEAREST-NEIGHBOR DISTANCE
+# 9. FINAL MATCHED COHORT
 # ============================================================
 
-X_processed = ps_model.named_steps["preprocessor"].transform(X)
+candidate_matches = match_df[
+    match_df["TARGET_HOSPITAL"] == 0
+].copy()
 
-nn = NearestNeighbors(
-    n_neighbors=N_SIMILAR + 1,
-    metric="euclidean"
-)
-
-nn.fit(X_processed)
-
-target_position = df.index[df["AHAID"] == TARGET_AHAID][0]
-
-distances, indices = nn.kneighbors(X_processed[target_position])
-
-similar_by_nn = df.iloc[indices[0]].copy()
-similar_by_nn["DISTANCE"] = distances[0]
-
-# Remove the target hospital itself
-similar_by_nn = similar_by_nn[similar_by_nn["CH_HOSPITAL"] == 0].head(N_SIMILAR)
-
-
-# ============================================================
-# 12. FINAL OUTPUTS
-# ============================================================
-
-print("\nTarget hospital propensity score:")
-print(target_score)
-
-print("\nTop similar hospitals by propensity score:")
-print(
-    similar_by_ps[
-        ["AHAID", "Hospital", "PROPENSITY_SCORE", "PS_ABS_DIFF"]
+candidate_matches = candidate_matches.sort_values(
+    by=[
+        "TOTAL_MATCH_POINTS",
+        "AVG_MATCH_POINTS",
+        "NUM_FIELDS_SCORED"
+    ],
+    ascending=[
+        False,
+        False,
+        False
     ]
 )
 
-print("\nTop similar hospitals by nearest-neighbor distance:")
-print(
-    similar_by_nn[
-        ["AHAID", "Hospital", "PROPENSITY_SCORE", "DISTANCE"]
-    ]
+matched_cohort = candidate_matches.head(FINAL_COHORT_SIZE).copy()
+
+
+# ============================================================
+# 10. FINAL OUTPUT
+# ============================================================
+
+summary_cols = [
+    AHAID_COL,
+    HOSPITAL_COL,
+    "TOTAL_MATCH_POINTS",
+    "AVG_MATCH_POINTS",
+    "NUM_FIELDS_SCORED"
+] + matching_vars
+
+summary_cols = [
+    col for col in summary_cols
+    if col in matched_cohort.columns
+]
+
+matched_cohort_summary = matched_cohort[summary_cols].copy()
+
+print("\nFinal matched cohort:")
+print(matched_cohort_summary)
+
+matched_cohort_summary.to_csv(
+    "matched_childrens_hospital_cohort_summary.csv",
+    index=False
 )
 
+match_df.to_csv(
+    "all_hospitals_with_specialty_match_scores.csv",
+    index=False
+)
 
-# ============================================================
-# 13. OPTIONAL EXPORTS
-# ============================================================
-
-# Full dataset with propensity score for every hospital
-df.to_csv("all_hospitals_with_propensity_scores.csv", index=False)
-
-# Top matches only
-similar_by_ps.to_csv("similar_hospitals_by_propensity_score.csv", index=False)
-similar_by_nn.to_csv("similar_hospitals_by_nearest_neighbors.csv", index=False)
+field_map_df.to_csv(
+    "specialty_field_mapping.csv",
+    index=False
+)
 
 print("\nFiles saved:")
-print("all_hospitals_with_propensity_scores.csv")
-print("similar_hospitals_by_propensity_score.csv")
-print("similar_hospitals_by_nearest_neighbors.csv")
+print("matched_childrens_hospital_cohort_summary.csv")
+print("all_hospitals_with_specialty_match_scores.csv")
+print("specialty_field_mapping.csv")
