@@ -276,14 +276,29 @@ SELECT
   , HOSPITAL_RANK AS NATIONAL_SPECIALTY_RANK
 
   , CASE
+        /*
+          Behavioral Health:
+          Any nationally ranked top-50 hospital receives 5 points.
+        */
         WHEN UPPER(MEASURE_GROUP) LIKE '%BEHAVIORAL%'
              AND HOSPITAL_RANK <= 50
         THEN 5
 
+        /*
+          Other specialties:
+          #1 = 25 points
+          #2 = 24 points
+          ...
+          #20 = 6 points
+        */
         WHEN UPPER(MEASURE_GROUP) NOT LIKE '%BEHAVIORAL%'
              AND HOSPITAL_RANK BETWEEN 1 AND 20
         THEN 26 - HOSPITAL_RANK
 
+        /*
+          Other specialties:
+          #21 through #50 = 5 points.
+        */
         WHEN UPPER(MEASURE_GROUP) NOT LIKE '%BEHAVIORAL%'
              AND HOSPITAL_RANK BETWEEN 21 AND 50
         THEN 5
@@ -306,10 +321,13 @@ SELECT
   , HOSPITAL_REPORT_ID
   , HOSPITAL_NAME
   , HOSPITAL_STATE
+
   , SUM(NATIONAL_HONOR_ROLL_SPECIALTY_POINTS) AS NATIONAL_HONOR_ROLL_SCORE
+
   , COUNT(DISTINCT CASE
         WHEN NATIONAL_HONOR_ROLL_SPECIALTY_POINTS > 0 THEN SPECIALTY
     END) AS NATIONAL_HONOR_ROLL_SPECIALTIES_RANKED
+
   , 255 AS NATIONAL_HONOR_ROLL_MAX_SCORE
 
 FROM NATIONAL_HONOR_ROLL_POINTS
@@ -328,6 +346,12 @@ FINAL_WITH_HONOR_ROLL AS (
 
 SELECT
     a.*
+
+  /*
+    This is the national Honor Roll score.
+    It is attached to every geography row:
+    NATIONAL, REGIONAL, STATE, and COHORT.
+  */
   , COALESCE(b.NATIONAL_HONOR_ROLL_SCORE, 0) AS NATIONAL_HONOR_ROLL_SCORE
   , COALESCE(b.NATIONAL_HONOR_ROLL_SPECIALTIES_RANKED, 0) AS NATIONAL_HONOR_ROLL_SPECIALTIES_RANKED
   , 255 AS NATIONAL_HONOR_ROLL_MAX_SCORE
@@ -340,6 +364,11 @@ LEFT JOIN NATIONAL_HONOR_ROLL_TOTAL b
 
 ),
 
+/*
+  Collapse to one row per hospital, year, and geography.
+  This is necessary because the source data is long by specialty.
+  If we ranked directly on FINAL_WITH_HONOR_ROLL, each hospital would appear multiple times.
+*/
 HOSPITAL_GROUP_LEVEL AS (
 
 SELECT DISTINCT
@@ -374,6 +403,19 @@ GROUP BY
 
 ),
 
+/*
+  This is the key CTE for your request.
+
+  It ranks the national Honor Roll score separately within each group:
+    - NATIONAL
+    - REGIONAL (MIDWEST)
+    - STATE (MICHIGAN)
+    - COHORT (10 PEERS)
+
+  So Regional rank is based only on hospitals in the regional hospital list.
+  State rank is based only on hospitals in the state hospital list.
+  Cohort rank is based only on hospitals in the cohort hospital list.
+*/
 HOSPITAL_GROUP_HONOR_ROLL_RANKS AS (
 
 SELECT
@@ -413,6 +455,10 @@ SELECT
   , HOSPITAL_REPORT_ID
   , NATIONAL_HONOR_ROLL_SCORE
 
+  /*
+    This is the overall national Honor Roll score rank.
+    It is calculated only among the NATIONAL group.
+  */
   , RANK() OVER (
         PARTITION BY PUBLISH_DATE
         ORDER BY NATIONAL_HONOR_ROLL_SCORE DESC
@@ -462,20 +508,39 @@ SELECT
   , a.MEASURE_NAME
   , a.HOSPITAL_MEASURE_RESULT
   , a.HOSPITAL_STANDARDIZED_MEASURE_PERCENTILE
+
+  /*
+    Specialty score rank within each geography.
+    This rank is based on HOSPITAL_MEASURE_RESULT within the current specialty.
+  */
   , a.HOSPITAL_RANK
   , a.HOSPITAL_COUNT
   , a.HOSPITAL_RANKING_TYPE
 
+  /*
+    National Honor Roll score fields.
+  */
   , a.NATIONAL_HONOR_ROLL_SCORE
   , a.NATIONAL_HONOR_ROLL_SPECIALTIES_RANKED
   , a.NATIONAL_HONOR_ROLL_MAX_SCORE
 
+  /*
+    Honor Roll score rank within the current geography.
+    This is the field you want for National, Regional, State, and Cohort.
+  */
   , b.NATIONAL_HONOR_ROLL_SCORE_RANK_WITHIN_GROUP
   , b.NATIONAL_HONOR_ROLL_SCORE_GROUP_COUNT
 
+  /*
+    Overall national Honor Roll score rank.
+    This is repeated across all geography rows for the hospital.
+  */
   , c.NATIONAL_HONOR_ROLL_SCORE_RANK_OVERALL
   , c.NATIONAL_HONOR_ROLL_TOP_10_FLAG
 
+  /*
+    Display fields for Tableau.
+  */
   , '#'
     || TO_VARCHAR(b.NATIONAL_HONOR_ROLL_SCORE_RANK_WITHIN_GROUP)
     || ' of '
