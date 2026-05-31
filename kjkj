@@ -348,8 +348,7 @@ SELECT
     a.*
 
   /*
-    This is the national Honor Roll score.
-    It is attached to every geography row:
+    This national Honor Roll score is attached to every geography row:
     NATIONAL, REGIONAL, STATE, and COHORT.
   */
   , COALESCE(b.NATIONAL_HONOR_ROLL_SCORE, 0) AS NATIONAL_HONOR_ROLL_SCORE
@@ -367,7 +366,6 @@ LEFT JOIN NATIONAL_HONOR_ROLL_TOTAL b
 /*
   Collapse to one row per hospital, year, and geography.
   This is necessary because the source data is long by specialty.
-  If we ranked directly on FINAL_WITH_HONOR_ROLL, each hospital would appear multiple times.
 */
 HOSPITAL_GROUP_LEVEL AS (
 
@@ -404,17 +402,7 @@ GROUP BY
 ),
 
 /*
-  This is the key CTE for your request.
-
-  It ranks the national Honor Roll score separately within each group:
-    - NATIONAL
-    - REGIONAL (MIDWEST)
-    - STATE (MICHIGAN)
-    - COHORT (10 PEERS)
-
-  So Regional rank is based only on hospitals in the regional hospital list.
-  State rank is based only on hospitals in the state hospital list.
-  Cohort rank is based only on hospitals in the cohort hospital list.
+  Rank the national Honor Roll score within each geography.
 */
 HOSPITAL_GROUP_HONOR_ROLL_RANKS AS (
 
@@ -456,8 +444,8 @@ SELECT
   , NATIONAL_HONOR_ROLL_SCORE
 
   /*
-    This is the overall national Honor Roll score rank.
-    It is calculated only among the NATIONAL group.
+    Overall national Honor Roll score rank.
+    This is calculated only among the NATIONAL group.
   */
   , RANK() OVER (
         PARTITION BY PUBLISH_DATE
@@ -487,7 +475,10 @@ FROM NATIONAL_OVERALL_HONOR_ROLL_RANK_STEP1
 
 ),
 
-FINAL_OUTPUT AS (
+/*
+  Specialty rows remain as originally structured.
+*/
+FINAL_SPECIALTY_ROWS AS (
 
 SELECT
     a.REPORT 
@@ -508,39 +499,20 @@ SELECT
   , a.MEASURE_NAME
   , a.HOSPITAL_MEASURE_RESULT
   , a.HOSPITAL_STANDARDIZED_MEASURE_PERCENTILE
-
-  /*
-    Specialty score rank within each geography.
-    This rank is based on HOSPITAL_MEASURE_RESULT within the current specialty.
-  */
   , a.HOSPITAL_RANK
   , a.HOSPITAL_COUNT
   , a.HOSPITAL_RANKING_TYPE
 
-  /*
-    National Honor Roll score fields.
-  */
   , a.NATIONAL_HONOR_ROLL_SCORE
   , a.NATIONAL_HONOR_ROLL_SPECIALTIES_RANKED
   , a.NATIONAL_HONOR_ROLL_MAX_SCORE
 
-  /*
-    Honor Roll score rank within the current geography.
-    This is the field you want for National, Regional, State, and Cohort.
-  */
   , b.NATIONAL_HONOR_ROLL_SCORE_RANK_WITHIN_GROUP
   , b.NATIONAL_HONOR_ROLL_SCORE_GROUP_COUNT
 
-  /*
-    Overall national Honor Roll score rank.
-    This is repeated across all geography rows for the hospital.
-  */
   , c.NATIONAL_HONOR_ROLL_SCORE_RANK_OVERALL
   , c.NATIONAL_HONOR_ROLL_TOP_10_FLAG
 
-  /*
-    Display fields for Tableau.
-  */
   , '#'
     || TO_VARCHAR(b.NATIONAL_HONOR_ROLL_SCORE_RANK_WITHIN_GROUP)
     || ' of '
@@ -556,6 +528,8 @@ SELECT
     || TO_VARCHAR(a.NATIONAL_HONOR_ROLL_MAX_SCORE)
     AS NATIONAL_HONOR_ROLL_SCORE_DISPLAY
 
+  , 'Specialty' AS ROW_TYPE
+
 FROM FINAL_WITH_HONOR_ROLL a
 
 LEFT JOIN HOSPITAL_GROUP_HONOR_ROLL_RANKS b
@@ -566,6 +540,117 @@ LEFT JOIN HOSPITAL_GROUP_HONOR_ROLL_RANKS b
 LEFT JOIN NATIONAL_OVERALL_HONOR_ROLL_RANK c
     ON  a.HOSPITAL_REPORT_ID = c.HOSPITAL_REPORT_ID
     AND a.PUBLISH_DATE = c.PUBLISH_DATE
+
+),
+
+/*
+  One base row per hospital, year, and geography for the Overall row.
+*/
+OVERALL_ROW_BASE AS (
+
+SELECT
+    a.*
+
+FROM FINAL_WITH_HONOR_ROLL a
+
+QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY
+        a.PUBLISH_DATE
+      , a.HOSPITAL_REPORT_ID
+      , a.HOSPITAL_RANKING_TYPE
+    ORDER BY
+        a.MEASURE_GROUP
+      , a.MEASURE_NAME
+) = 1
+
+),
+
+/*
+  Add Overall as its own row.
+  For Overall:
+    MEASURE_GROUP = Overall
+    MEASURE_NAME = Overall
+    HOSPITAL_MEASURE_RESULT = NATIONAL_HONOR_ROLL_SCORE
+    HOSPITAL_RANK = NATIONAL_HONOR_ROLL_SCORE_RANK_WITHIN_GROUP
+    HOSPITAL_COUNT = NATIONAL_HONOR_ROLL_SCORE_GROUP_COUNT
+*/
+OVERALL_HONOR_ROLL_ROWS AS (
+
+SELECT
+    a.REPORT 
+  , a.PUBLISH_DATE
+  , a.PUBLISH_DATE_STRING
+  , a.HOSPITAL_REPORT_ID
+  , a.COREWELL_HEALTH_HOSPITAL
+  , a.HOSPITAL_NAME
+  , a.HOSPITAL_ADDRESS
+  , a.HOSPITAL_CITY
+  , a.HOSPITAL_STATE
+  , a.HOSPITAL_ZIP_CODE
+  , a.HOSPITAL_LONGITUDE
+  , a.HOSPITAL_LATITUDE
+  , a.REPORT_OVERALL_SCORE_RANKING
+
+  , 'Overall' AS MEASURE_CATEGORY
+  , 'Overall' AS MEASURE_GROUP
+  , 'Overall' AS MEASURE_NAME
+
+  , a.NATIONAL_HONOR_ROLL_SCORE::FLOAT AS HOSPITAL_MEASURE_RESULT
+  , NULL AS HOSPITAL_STANDARDIZED_MEASURE_PERCENTILE
+
+  , b.NATIONAL_HONOR_ROLL_SCORE_RANK_WITHIN_GROUP AS HOSPITAL_RANK
+  , b.NATIONAL_HONOR_ROLL_SCORE_GROUP_COUNT AS HOSPITAL_COUNT
+  , a.HOSPITAL_RANKING_TYPE
+
+  , a.NATIONAL_HONOR_ROLL_SCORE
+  , a.NATIONAL_HONOR_ROLL_SPECIALTIES_RANKED
+  , a.NATIONAL_HONOR_ROLL_MAX_SCORE
+
+  , b.NATIONAL_HONOR_ROLL_SCORE_RANK_WITHIN_GROUP
+  , b.NATIONAL_HONOR_ROLL_SCORE_GROUP_COUNT
+
+  , c.NATIONAL_HONOR_ROLL_SCORE_RANK_OVERALL
+  , c.NATIONAL_HONOR_ROLL_TOP_10_FLAG
+
+  , '#'
+    || TO_VARCHAR(b.NATIONAL_HONOR_ROLL_SCORE_RANK_WITHIN_GROUP)
+    || ' of '
+    || TO_VARCHAR(b.NATIONAL_HONOR_ROLL_SCORE_GROUP_COUNT)
+    AS NATIONAL_HONOR_ROLL_SCORE_RANK_WITHIN_GROUP_DISPLAY
+
+  , '#'
+    || TO_VARCHAR(c.NATIONAL_HONOR_ROLL_SCORE_RANK_OVERALL)
+    AS NATIONAL_HONOR_ROLL_SCORE_RANK_OVERALL_DISPLAY
+
+  , TO_VARCHAR(a.NATIONAL_HONOR_ROLL_SCORE)
+    || ' / '
+    || TO_VARCHAR(a.NATIONAL_HONOR_ROLL_MAX_SCORE)
+    AS NATIONAL_HONOR_ROLL_SCORE_DISPLAY
+
+  , 'Overall' AS ROW_TYPE
+
+FROM OVERALL_ROW_BASE a
+
+LEFT JOIN HOSPITAL_GROUP_HONOR_ROLL_RANKS b
+    ON  a.HOSPITAL_REPORT_ID = b.HOSPITAL_REPORT_ID
+    AND a.PUBLISH_DATE = b.PUBLISH_DATE
+    AND a.HOSPITAL_RANKING_TYPE = b.HOSPITAL_RANKING_TYPE
+
+LEFT JOIN NATIONAL_OVERALL_HONOR_ROLL_RANK c
+    ON  a.HOSPITAL_REPORT_ID = c.HOSPITAL_REPORT_ID
+    AND a.PUBLISH_DATE = c.PUBLISH_DATE
+
+),
+
+FINAL_OUTPUT AS (
+
+SELECT *
+FROM FINAL_SPECIALTY_ROWS
+
+UNION ALL
+
+SELECT *
+FROM OVERALL_HONOR_ROLL_ROWS
 
 )
 
