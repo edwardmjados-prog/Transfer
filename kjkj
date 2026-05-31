@@ -19,154 +19,180 @@ SELECT
   , HOSPITAL_MEASURE_RESULT
   , HOSPITAL_STANDARDIZED_MEASURE_PERCENTILE
   , REPORT_OVERALL_SCORE_RANKING
+
 FROM CARE_SILVER_DEV.EXPERIENCE.PERCEPTION_REPORTING_TABLE
+
 WHERE REPORT = 'USNWR - Pediatric Specialties'
-AND MEASURE_NAME = 'SPECIALTY_SCORE'
+  AND MEASURE_NAME = 'SPECIALTY_SCORE'
+
 ),
 
 DISTINCT_NAMES AS (
 
 SELECT
-  HOSPITAL_REPORT_ID
-, UPPER(MIN(HOSPITAL_NAME)) AS HOSPITAL_NAME
+    HOSPITAL_REPORT_ID
+  , UPPER(MIN(HOSPITAL_NAME)) AS HOSPITAL_NAME
 
 FROM MASTER_TABLE
+
 WHERE REPORT = 'USNWR - Pediatric Specialties'
-AND MEASURE_NAME = 'SPECIALTY_SCORE'
-GROUP BY HOSPITAL_REPORT_ID
+  AND MEASURE_NAME = 'SPECIALTY_SCORE'
+
+GROUP BY
+    HOSPITAL_REPORT_ID
 
 ),
 
 NATIONAL_RANK AS (
 
 SELECT 
-      a.*
-    , 'NATIONAL' AS HOSPITAL_RANKING_TYPE
+    a.*
+  , 'NATIONAL' AS HOSPITAL_RANKING_TYPE
+
 FROM MASTER_TABLE a
+
 ),
 
 STATE_RANK AS (
 
 SELECT
-      a.*
-    , 'STATE (MICHIGAN)' AS HOSPITAL_RANKING_TYPE
+    a.*
+  , 'STATE (MICHIGAN)' AS HOSPITAL_RANKING_TYPE
+
 FROM MASTER_TABLE a
 
 WHERE HOSPITAL_REPORT_ID IN (
-                '6440110',
-                '6440021',
-                '6440480',
-                '6441550',
-                '6442245',
-                '6441943',
-                '6441030' )                
+      '6440110'
+    , '6440021'
+    , '6440480'
+    , '6441550'
+    , '6442245'
+    , '6441943'
+    , '6441030'
+)
+
 ),
 
 REGIONAL_RANK AS (
+
 SELECT
     a.*
-    , 'REGIONAL (MIDWEST)' AS HOSPITAL_RANKING_TYPE
+  , 'REGIONAL (MIDWEST)' AS HOSPITAL_RANKING_TYPE
+
 FROM MASTER_TABLE a
+
 WHERE HOSPITAL_REPORT_ID IN (
-                '6410391',
-                '6410950',
-                '6430560',
-                '6410670',
-                '6610451',
-                '6410922',
-                '6420020',
-                '6631180',
-                '6440110',
-                '6630340',
-                '6510540',
-                '6620765',
-                '6410055',
-                '6451030',
-                '6630945',
-                '6660635',
-                '6450820',
-                '6440021',
-                '6411160',
-                '6431210',
-                '6510455',
-                '6610004',
-                '6432413',
-                '6440480',
-                '6631270',
-                '6510450',
-                '6660706',
-                '6430553',
-                '6432620',
-                '6420715',
-                '6421290',
-                '6410002',
-                '6441550',
-                '6430031',
-                '6610442',
-                '6450028',
-                '6670026',
-                '6610449',
-                '6410650',
-                '6442245',
-                '6429040',
-                '6430447',
-                '6611620',
-                '6441943',
-                '6631215',
-                '6630775',
-                '6610950',
-                '6441030',
-                '6670044',
-                '6650415',
-                '6430035',
-                '6450860',
-                '6631350',
-                '6631165',
-                '6412170',
-                '6410621',
-                '6660005',
-                '6610443',
-                '6412180',
-                '6630022',
-                '6510775',
-                '6430841',
-                '6430985',
-                '6650007',
-                '6640180',
-                '6410622',
-                '6431140',
-                '6432980',
-                '6620420',
-                '6630150' )
+      '6410391'
+    , '6410950'
+    , '6430560'
+    , '6410670'
+    , '6610451'
+    , '6410922'
+    , '6420020'
+    , '6631180'
+    , '6440110'
+    , '6630340'
+    , '6510540'
+    , '6620765'
+    , '6410055'
+    , '6451030'
+    , '6630945'
+    , '6660635'
+    , '6450820'
+    , '6440021'
+    , '6411160'
+    , '6431210'
+    , '6510455'
+    , '6610004'
+    , '6432413'
+    , '6440480'
+    , '6631270'
+    , '6510450'
+    , '6660706'
+    , '6430553'
+    , '6432620'
+    , '6420715'
+    , '6421290'
+    , '6410002'
+    , '6441550'
+    , '6430031'
+    , '6610442'
+    , '6450028'
+    , '6670026'
+    , '6610449'
+    , '6410650'
+    , '6442245'
+    , '6429040'
+    , '6430447'
+    , '6611620'
+    , '6441943'
+    , '6631215'
+    , '6630775'
+    , '6610950'
+    , '6441030'
+    , '6670044'
+    , '6650415'
+    , '6430035'
+    , '6450860'
+    , '6631350'
+    , '6631165'
+    , '6412170'
+    , '6410621'
+    , '6660005'
+    , '6610443'
+    , '6412180'
+    , '6630022'
+    , '6510775'
+    , '6430841'
+    , '6430985'
+    , '6650007'
+    , '6640180'
+    , '6410622'
+    , '6431140'
+    , '6432980'
+    , '6620420'
+    , '6630150'
+)
+
 ),
 
-
 COHORT_RANK AS (
+
 SELECT 
     a.*
-    , 'COHORT (10 PEERS)' AS HOSPITAL_RANKING_TYPE
+  , 'COHORT (10 PEERS)' AS HOSPITAL_RANKING_TYPE
+
 FROM MASTER_TABLE a
+
 WHERE HOSPITAL_REPORT_ID IN (
-                '6930206',
-                '6390900',
-                '6660635',
-                '6450820',
-                '6390695',
-                '6440480',
-                '6510540',
-                '6350007',
-                '6710340',
-                '6390687')
+      '6930206'
+    , '6390900'
+    , '6660635'
+    , '6450820'
+    , '6390695'
+    , '6440480'
+    , '6510540'
+    , '6350007'
+    , '6710340'
+    , '6390687'
+)
+
 ),
 
 TABLES_UNION AS (
 
 SELECT * FROM NATIONAL_RANK
+
 UNION ALL
+
 SELECT * FROM STATE_RANK
+
 UNION ALL
+
 SELECT * FROM REGIONAL_RANK
+
 UNION ALL
+
 SELECT * FROM COHORT_RANK
 
 ),
@@ -190,29 +216,331 @@ SELECT
   , a.MEASURE_CATEGORY
   , a.MEASURE_GROUP
   , a.MEASURE_NAME
-  , a.HOSPITAL_MEASURE_RESULT
+  , TRY_TO_NUMBER(a.HOSPITAL_MEASURE_RESULT) AS HOSPITAL_MEASURE_RESULT
   , a.HOSPITAL_STANDARDIZED_MEASURE_PERCENTILE
+
   , RANK() OVER (
-        PARTITION BY a.MEASURE_GROUP, a.MEASURE_NAME, a.HOSPITAL_RANKING_TYPE, a.PUBLISH_DATE
-        ORDER BY a.HOSPITAL_MEASURE_RESULT DESC) AS HOSPITAL_RANK
+        PARTITION BY
+            a.MEASURE_GROUP
+          , a.MEASURE_NAME
+          , a.HOSPITAL_RANKING_TYPE
+          , a.PUBLISH_DATE
+        ORDER BY TRY_TO_NUMBER(a.HOSPITAL_MEASURE_RESULT) DESC
+    ) AS HOSPITAL_RANK
+
   , c.HOSPITAL_COUNT
   , a.HOSPITAL_RANKING_TYPE
+
 FROM TABLES_UNION a
 
-LEFT JOIN DISTINCT_NAMES b ON (a.HOSPITAL_REPORT_ID = b.HOSPITAL_REPORT_ID)
-LEFT JOIN (
-        SELECT
-              PUBLISH_DATE
-            , MEASURE_GROUP
-            , MEASURE_NAME
-            , HOSPITAL_RANKING_TYPE
-            , COUNT(DISTINCT HOSPITAL_REPORT_ID) AS HOSPITAL_COUNT
-        FROM TABLES_UNION
-        GROUP BY
-            PUBLISH_DATE, MEASURE_GROUP, MEASURE_NAME, HOSPITAL_RANKING_TYPE) c ON (a.PUBLISH_DATE = c.PUBLISH_DATE AND a.MEASURE_GROUP = c.MEASURE_GROUP AND a.MEASURE_NAME = c.MEASURE_NAME AND a.HOSPITAL_RANKING_TYPE = c.HOSPITAL_RANKING_TYPE)
+LEFT JOIN DISTINCT_NAMES b 
+    ON a.HOSPITAL_REPORT_ID = b.HOSPITAL_REPORT_ID
 
+LEFT JOIN (
+    SELECT
+        PUBLISH_DATE
+      , MEASURE_GROUP
+      , MEASURE_NAME
+      , HOSPITAL_RANKING_TYPE
+      , COUNT(DISTINCT HOSPITAL_REPORT_ID) AS HOSPITAL_COUNT
+
+    FROM TABLES_UNION
+
+    GROUP BY
+        PUBLISH_DATE
+      , MEASURE_GROUP
+      , MEASURE_NAME
+      , HOSPITAL_RANKING_TYPE
+) c 
+    ON  a.PUBLISH_DATE = c.PUBLISH_DATE
+    AND a.MEASURE_GROUP = c.MEASURE_GROUP
+    AND a.MEASURE_NAME = c.MEASURE_NAME
+    AND a.HOSPITAL_RANKING_TYPE = c.HOSPITAL_RANKING_TYPE
+
+),
+
+NATIONAL_HONOR_ROLL_POINTS AS (
+
+SELECT
+    REPORT
+  , PUBLISH_DATE
+  , PUBLISH_DATE_STRING
+  , HOSPITAL_REPORT_ID
+  , HOSPITAL_NAME
+  , HOSPITAL_STATE
+  , MEASURE_GROUP AS SPECIALTY
+  , MEASURE_NAME
+  , HOSPITAL_MEASURE_RESULT
+  , HOSPITAL_RANK AS NATIONAL_SPECIALTY_RANK
+
+  , CASE
+        /*
+          Behavioral Health rule:
+          Top 50 hospitals receive 5 points.
+        */
+        WHEN UPPER(MEASURE_GROUP) LIKE '%BEHAVIORAL%'
+             AND HOSPITAL_RANK <= 50
+        THEN 5
+
+        /*
+          Other specialties:
+          #1 = 25 points
+          #2 = 24 points
+          ...
+          #20 = 6 points
+        */
+        WHEN UPPER(MEASURE_GROUP) NOT LIKE '%BEHAVIORAL%'
+             AND HOSPITAL_RANK BETWEEN 1 AND 20
+        THEN 26 - HOSPITAL_RANK
+
+        /*
+          Other specialties:
+          #21 through #50 = 5 points
+        */
+        WHEN UPPER(MEASURE_GROUP) NOT LIKE '%BEHAVIORAL%'
+             AND HOSPITAL_RANK BETWEEN 21 AND 50
+        THEN 5
+
+        ELSE 0
+    END AS NATIONAL_HONOR_ROLL_SPECIALTY_POINTS
+
+FROM FINAL_TABLE
+
+WHERE HOSPITAL_RANKING_TYPE = 'NATIONAL'
+
+),
+
+NATIONAL_HONOR_ROLL_TOTAL AS (
+
+SELECT
+    REPORT
+  , PUBLISH_DATE
+  , PUBLISH_DATE_STRING
+  , HOSPITAL_REPORT_ID
+  , HOSPITAL_NAME
+  , HOSPITAL_STATE
+
+  , SUM(NATIONAL_HONOR_ROLL_SPECIALTY_POINTS) AS NATIONAL_HONOR_ROLL_SCORE
+
+  , COUNT(DISTINCT CASE
+        WHEN NATIONAL_HONOR_ROLL_SPECIALTY_POINTS > 0 THEN SPECIALTY
+    END) AS NATIONAL_HONOR_ROLL_SPECIALTIES_RANKED
+
+  , 255 AS NATIONAL_HONOR_ROLL_MAX_SCORE
+
+FROM NATIONAL_HONOR_ROLL_POINTS
+
+GROUP BY
+    REPORT
+  , PUBLISH_DATE
+  , PUBLISH_DATE_STRING
+  , HOSPITAL_REPORT_ID
+  , HOSPITAL_NAME
+  , HOSPITAL_STATE
+
+),
+
+FINAL_WITH_HONOR_ROLL AS (
+
+SELECT
+    a.*
+
+  , COALESCE(b.NATIONAL_HONOR_ROLL_SCORE, 0) AS NATIONAL_HONOR_ROLL_SCORE
+  , COALESCE(b.NATIONAL_HONOR_ROLL_SPECIALTIES_RANKED, 0) AS NATIONAL_HONOR_ROLL_SPECIALTIES_RANKED
+  , 255 AS NATIONAL_HONOR_ROLL_MAX_SCORE
+
+FROM FINAL_TABLE a
+
+LEFT JOIN NATIONAL_HONOR_ROLL_TOTAL b
+    ON  a.HOSPITAL_REPORT_ID = b.HOSPITAL_REPORT_ID
+    AND a.PUBLISH_DATE = b.PUBLISH_DATE
+
+),
+
+/*
+  Create one row per hospital, publish date, and ranking group.
+  This prevents the Honor Roll rank from being distorted by specialty-level duplicate rows.
+*/
+HOSPITAL_GROUP_LEVEL AS (
+
+SELECT DISTINCT
+    REPORT
+  , PUBLISH_DATE
+  , PUBLISH_DATE_STRING
+  , HOSPITAL_REPORT_ID
+  , COREWELL_HEALTH_HOSPITAL
+  , HOSPITAL_NAME
+  , HOSPITAL_STATE
+  , HOSPITAL_RANKING_TYPE
+  , NATIONAL_HONOR_ROLL_SCORE
+  , NATIONAL_HONOR_ROLL_SPECIALTIES_RANKED
+  , NATIONAL_HONOR_ROLL_MAX_SCORE
+
+FROM FINAL_WITH_HONOR_ROLL
+
+),
+
+HOSPITAL_GROUP_COUNTS AS (
+
+SELECT
+    PUBLISH_DATE
+  , HOSPITAL_RANKING_TYPE
+  , COUNT(DISTINCT HOSPITAL_REPORT_ID) AS NATIONAL_HONOR_ROLL_SCORE_GROUP_COUNT
+
+FROM HOSPITAL_GROUP_LEVEL
+
+GROUP BY
+    PUBLISH_DATE
+  , HOSPITAL_RANKING_TYPE
+
+),
+
+HOSPITAL_GROUP_HONOR_ROLL_RANKS AS (
+
+SELECT
+    a.REPORT
+  , a.PUBLISH_DATE
+  , a.PUBLISH_DATE_STRING
+  , a.HOSPITAL_REPORT_ID
+  , a.COREWELL_HEALTH_HOSPITAL
+  , a.HOSPITAL_NAME
+  , a.HOSPITAL_STATE
+  , a.HOSPITAL_RANKING_TYPE
+  , a.NATIONAL_HONOR_ROLL_SCORE
+  , a.NATIONAL_HONOR_ROLL_SPECIALTIES_RANKED
+  , a.NATIONAL_HONOR_ROLL_MAX_SCORE
+  , b.NATIONAL_HONOR_ROLL_SCORE_GROUP_COUNT
+
+  /*
+    This ranks the national Honor Roll score within each geography:
+    National, Regional, State, and Cohort.
+  */
+  , RANK() OVER (
+        PARTITION BY
+            a.PUBLISH_DATE
+          , a.HOSPITAL_RANKING_TYPE
+        ORDER BY
+            a.NATIONAL_HONOR_ROLL_SCORE DESC
+    ) AS NATIONAL_HONOR_ROLL_SCORE_RANK_WITHIN_GROUP
+
+FROM HOSPITAL_GROUP_LEVEL a
+
+LEFT JOIN HOSPITAL_GROUP_COUNTS b
+    ON  a.PUBLISH_DATE = b.PUBLISH_DATE
+    AND a.HOSPITAL_RANKING_TYPE = b.HOSPITAL_RANKING_TYPE
+
+),
+
+NATIONAL_OVERALL_HONOR_ROLL_RANK AS (
+
+SELECT
+    PUBLISH_DATE
+  , HOSPITAL_REPORT_ID
+
+  /*
+    This is the overall national rank by national Honor Roll score.
+    It is calculated only among the NATIONAL group.
+  */
+  , RANK() OVER (
+        PARTITION BY PUBLISH_DATE
+        ORDER BY NATIONAL_HONOR_ROLL_SCORE DESC
+    ) AS NATIONAL_HONOR_ROLL_SCORE_RANK_OVERALL
+
+  , CASE
+        WHEN RANK() OVER (
+            PARTITION BY PUBLISH_DATE
+            ORDER BY NATIONAL_HONOR_ROLL_SCORE DESC
+        ) <= 10
+        THEN 1
+        ELSE 0
+    END AS NATIONAL_HONOR_ROLL_TOP_10_FLAG
+
+FROM HOSPITAL_GROUP_LEVEL
+
+WHERE HOSPITAL_RANKING_TYPE = 'NATIONAL'
+
+),
+
+FINAL_OUTPUT AS (
+
+SELECT
+    a.REPORT 
+  , a.PUBLISH_DATE
+  , a.PUBLISH_DATE_STRING
+  , a.HOSPITAL_REPORT_ID
+  , a.COREWELL_HEALTH_HOSPITAL
+  , a.HOSPITAL_NAME
+  , a.HOSPITAL_ADDRESS
+  , a.HOSPITAL_CITY
+  , a.HOSPITAL_STATE
+  , a.HOSPITAL_ZIP_CODE
+  , a.HOSPITAL_LONGITUDE
+  , a.HOSPITAL_LATITUDE
+  , a.REPORT_OVERALL_SCORE_RANKING
+  , a.MEASURE_CATEGORY
+  , a.MEASURE_GROUP
+  , a.MEASURE_NAME
+  , a.HOSPITAL_MEASURE_RESULT
+  , a.HOSPITAL_STANDARDIZED_MEASURE_PERCENTILE
+  , a.HOSPITAL_RANK
+  , a.HOSPITAL_COUNT
+  , a.HOSPITAL_RANKING_TYPE
+
+  /*
+    National Honor Roll score attached to every geography row.
+  */
+  , a.NATIONAL_HONOR_ROLL_SCORE
+  , a.NATIONAL_HONOR_ROLL_SPECIALTIES_RANKED
+  , a.NATIONAL_HONOR_ROLL_MAX_SCORE
+
+  /*
+    Honor Roll score rank within the displayed geography.
+    Example:
+      NATIONAL = rank among all national hospitals
+      REGIONAL = rank among regional hospitals
+      STATE = rank among state hospitals
+      COHORT = rank among cohort hospitals
+  */
+  , b.NATIONAL_HONOR_ROLL_SCORE_RANK_WITHIN_GROUP
+  , b.NATIONAL_HONOR_ROLL_SCORE_GROUP_COUNT
+
+  /*
+    Overall national Honor Roll rank, repeated on all geography rows.
+  */
+  , c.NATIONAL_HONOR_ROLL_SCORE_RANK_OVERALL
+  , c.NATIONAL_HONOR_ROLL_TOP_10_FLAG
+
+  /*
+    Optional display-friendly fields for Tableau.
+  */
+  , '#' 
+    || b.NATIONAL_HONOR_ROLL_SCORE_RANK_WITHIN_GROUP::VARCHAR
+    || ' of '
+    || b.NATIONAL_HONOR_ROLL_SCORE_GROUP_COUNT::VARCHAR
+    AS NATIONAL_HONOR_ROLL_SCORE_RANK_WITHIN_GROUP_DISPLAY
+
+  , '#'
+    || c.NATIONAL_HONOR_ROLL_SCORE_RANK_OVERALL::VARCHAR
+    AS NATIONAL_HONOR_ROLL_SCORE_RANK_OVERALL_DISPLAY
+
+  , a.NATIONAL_HONOR_ROLL_SCORE::VARCHAR
+    || ' / '
+    || a.NATIONAL_HONOR_ROLL_MAX_SCORE::VARCHAR
+    AS NATIONAL_HONOR_ROLL_SCORE_DISPLAY
+
+FROM FINAL_WITH_HONOR_ROLL a
+
+LEFT JOIN HOSPITAL_GROUP_HONOR_ROLL_RANKS b
+    ON  a.HOSPITAL_REPORT_ID = b.HOSPITAL_REPORT_ID
+    AND a.PUBLISH_DATE = b.PUBLISH_DATE
+    AND a.HOSPITAL_RANKING_TYPE = b.HOSPITAL_RANKING_TYPE
+
+LEFT JOIN NATIONAL_OVERALL_HONOR_ROLL_RANK c
+    ON  a.HOSPITAL_REPORT_ID = c.HOSPITAL_REPORT_ID
+    AND a.PUBLISH_DATE = c.PUBLISH_DATE
 
 )
 
 SELECT *
-FROM FINAL_TABLE
+FROM FINAL_OUTPUT
+;
