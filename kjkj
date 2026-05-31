@@ -1,519 +1,218 @@
-# ============================================================
-# CHILDREN'S HOSPITAL SPECIALTY-BASED COHORT MATCHING
-# ============================================================
-#
-# Purpose:
-#   Find hospitals similar to one target children's hospital.
-#
-# Method:
-#   1. Import hospital-level CSV
-#   2. Identify specialty fields such as:
-#        Number of Patients - Cancer
-#        Commitment to clinical research - Cancer
-#        Expert Opinion - Cancer
-#        Number of Procedures - Diabetes
-#   3. Compare every hospital to the target hospital for each field
-#   4. Give all hospitals points based on closeness
-#   5. Use equal weight for every field
-#   6. Sum points across all fields
-#   7. Return the highest-scoring comparison cohort
-#
-# Output files:
-#   matched_childrens_hospital_cohort_summary.csv
-#   all_hospitals_with_specialty_match_scores.csv
-#   specialty_field_mapping.csv
-#
-# ============================================================
+WITH MASTER_TABLE AS (
+
+SELECT 
+    REPORT 
+  , PUBLISH_DATE
+  , PUBLISH_DATE_STRING
+  , HOSPITAL_REPORT_ID
+  , COREWELL_HEALTH_HOSPITAL
+  , HOSPITAL_NAME
+  , HOSPITAL_ADDRESS
+  , HOSPITAL_CITY
+  , HOSPITAL_STATE
+  , HOSPITAL_ZIP_CODE
+  , HOSPITAL_LONGITUDE
+  , HOSPITAL_LATITUDE
+  , MEASURE_CATEGORY
+  , MEASURE_GROUP
+  , MEASURE_NAME
+  , HOSPITAL_MEASURE_RESULT
+  , HOSPITAL_STANDARDIZED_MEASURE_PERCENTILE
+  , REPORT_OVERALL_SCORE_RANKING
+FROM CARE_SILVER_DEV.EXPERIENCE.PERCEPTION_REPORTING_TABLE
+WHERE REPORT = 'USNWR - Pediatric Specialties'
+AND MEASURE_NAME = 'SPECIALTY_SCORE'
+),
+
+DISTINCT_NAMES AS (
+
+SELECT
+  HOSPITAL_REPORT_ID
+, UPPER(MIN(HOSPITAL_NAME)) AS HOSPITAL_NAME
+
+FROM MASTER_TABLE
+WHERE REPORT = 'USNWR - Pediatric Specialties'
+AND MEASURE_NAME = 'SPECIALTY_SCORE'
+GROUP BY HOSPITAL_REPORT_ID
+
+),
+
+NATIONAL_RANK AS (
+
+SELECT 
+      a.*
+    , 'NATIONAL' AS HOSPITAL_RANKING_TYPE
+FROM MASTER_TABLE a
+),
+
+STATE_RANK AS (
+
+SELECT
+      a.*
+    , 'STATE (MICHIGAN)' AS HOSPITAL_RANKING_TYPE
+FROM MASTER_TABLE a
+
+WHERE HOSPITAL_REPORT_ID IN (
+                '6440110',
+                '6440021',
+                '6440480',
+                '6441550',
+                '6442245',
+                '6441943',
+                '6441030' )                
+),
+
+REGIONAL_RANK AS (
+SELECT
+    a.*
+    , 'REGIONAL (MIDWEST)' AS HOSPITAL_RANKING_TYPE
+FROM MASTER_TABLE a
+WHERE HOSPITAL_REPORT_ID IN (
+                '6410391',
+                '6410950',
+                '6430560',
+                '6410670',
+                '6610451',
+                '6410922',
+                '6420020',
+                '6631180',
+                '6440110',
+                '6630340',
+                '6510540',
+                '6620765',
+                '6410055',
+                '6451030',
+                '6630945',
+                '6660635',
+                '6450820',
+                '6440021',
+                '6411160',
+                '6431210',
+                '6510455',
+                '6610004',
+                '6432413',
+                '6440480',
+                '6631270',
+                '6510450',
+                '6660706',
+                '6430553',
+                '6432620',
+                '6420715',
+                '6421290',
+                '6410002',
+                '6441550',
+                '6430031',
+                '6610442',
+                '6450028',
+                '6670026',
+                '6610449',
+                '6410650',
+                '6442245',
+                '6429040',
+                '6430447',
+                '6611620',
+                '6441943',
+                '6631215',
+                '6630775',
+                '6610950',
+                '6441030',
+                '6670044',
+                '6650415',
+                '6430035',
+                '6450860',
+                '6631350',
+                '6631165',
+                '6412170',
+                '6410621',
+                '6660005',
+                '6610443',
+                '6412180',
+                '6630022',
+                '6510775',
+                '6430841',
+                '6430985',
+                '6650007',
+                '6640180',
+                '6410622',
+                '6431140',
+                '6432980',
+                '6620420',
+                '6630150' )
+),
 
 
-import pandas as pd
-import numpy as np
+COHORT_RANK AS (
+SELECT 
+    a.*
+    , 'COHORT (10 PEERS)' AS HOSPITAL_RANKING_TYPE
+FROM MASTER_TABLE a
+WHERE HOSPITAL_REPORT_ID IN (
+                '6930206',
+                '6390900',
+                '6660635',
+                '6450820',
+                '6390695',
+                '6440480',
+                '6510540',
+                '6350007',
+                '6710340',
+                '6390687')
+),
+
+TABLES_UNION AS (
+
+SELECT * FROM NATIONAL_RANK
+UNION ALL
+SELECT * FROM STATE_RANK
+UNION ALL
+SELECT * FROM REGIONAL_RANK
+UNION ALL
+SELECT * FROM COHORT_RANK
+
+),
+
+FINAL_TABLE AS (
+
+SELECT
+    a.REPORT 
+  , a.PUBLISH_DATE
+  , a.PUBLISH_DATE_STRING
+  , a.HOSPITAL_REPORT_ID
+  , a.COREWELL_HEALTH_HOSPITAL
+  , b.HOSPITAL_NAME
+  , a.HOSPITAL_ADDRESS
+  , a.HOSPITAL_CITY
+  , a.HOSPITAL_STATE
+  , a.HOSPITAL_ZIP_CODE
+  , a.HOSPITAL_LONGITUDE
+  , a.HOSPITAL_LATITUDE
+  , a.REPORT_OVERALL_SCORE_RANKING
+  , a.MEASURE_CATEGORY
+  , a.MEASURE_GROUP
+  , a.MEASURE_NAME
+  , a.HOSPITAL_MEASURE_RESULT
+  , a.HOSPITAL_STANDARDIZED_MEASURE_PERCENTILE
+  , RANK() OVER (
+        PARTITION BY a.MEASURE_GROUP, a.MEASURE_NAME, a.HOSPITAL_RANKING_TYPE, a.PUBLISH_DATE
+        ORDER BY a.HOSPITAL_MEASURE_RESULT DESC) AS HOSPITAL_RANK
+  , c.HOSPITAL_COUNT
+  , a.HOSPITAL_RANKING_TYPE
+FROM TABLES_UNION a
+
+LEFT JOIN DISTINCT_NAMES b ON (a.HOSPITAL_REPORT_ID = b.HOSPITAL_REPORT_ID)
+LEFT JOIN (
+        SELECT
+              PUBLISH_DATE
+            , MEASURE_GROUP
+            , MEASURE_NAME
+            , HOSPITAL_RANKING_TYPE
+            , COUNT(DISTINCT HOSPITAL_REPORT_ID) AS HOSPITAL_COUNT
+        FROM TABLES_UNION
+        GROUP BY
+            PUBLISH_DATE, MEASURE_GROUP, MEASURE_NAME, HOSPITAL_RANKING_TYPE) c ON (a.PUBLISH_DATE = c.PUBLISH_DATE AND a.MEASURE_GROUP = c.MEASURE_GROUP AND a.MEASURE_NAME = c.MEASURE_NAME AND a.HOSPITAL_RANKING_TYPE = c.HOSPITAL_RANKING_TYPE)
 
 
-# ============================================================
-# 1. CONFIG
-# ============================================================
-
-# Change this to your actual CSV file path
-FILE_PATH = r"C:\Users\YourName\Documents\your_file.csv"
-
-# Target hospital AHAID
-TARGET_AHAID = "640021"
-
-# Column names in your file
-AHAID_COL = "AHAID"
-HOSPITAL_COL = "Hospital"
-
-# Number of hospitals to return in final cohort
-FINAL_COHORT_SIZE = 20
-
-# Maximum points each field can contribute
-# Since all weights are equal, each field can contribute up to 10 points
-MAX_POINTS_PER_FIELD = 10
-
-# Your matching columns use this format:
-#   Number of Patients - Cancer
-#   Expert Opinion - Urology
-#   Commitment to clinical research - Mental Health
-FIELD_SEPARATOR = " - "
-
-
-# ============================================================
-# 2. IMPORT CSV
-# ============================================================
-
-df = pd.read_csv(
-    FILE_PATH,
-    dtype={AHAID_COL: str}
 )
 
-print("CSV imported successfully.")
-print(f"Rows imported: {len(df)}")
-print(f"Columns imported: {len(df.columns)}")
-
-
-# ============================================================
-# 3. COPY DATA AND CLEAN COLUMN NAMES
-# ============================================================
-
-match_df = df.copy()
-
-# Clean column names
-match_df.columns = (
-    match_df.columns
-    .astype(str)
-    .str.strip()
-    .str.replace(r"\s+", " ", regex=True)
-)
-
-# Clean AHAID
-match_df[AHAID_COL] = (
-    match_df[AHAID_COL]
-    .astype(str)
-    .str.strip()
-)
-
-# Create target hospital flag
-match_df["TARGET_HOSPITAL"] = (
-    match_df[AHAID_COL] == TARGET_AHAID
-).astype(int)
-
-
-# ============================================================
-# 4. BASIC CHECKS
-# ============================================================
-
-target_count = match_df["TARGET_HOSPITAL"].sum()
-
-if target_count == 0:
-    raise ValueError(
-        f"No hospital found with {AHAID_COL} = {TARGET_AHAID}. "
-        f"Check TARGET_AHAID or the {AHAID_COL} column."
-    )
-
-if target_count > 1:
-    raise ValueError(
-        f"More than one hospital found with {AHAID_COL} = {TARGET_AHAID}. "
-        "Expected one row per hospital."
-    )
-
-print(f"\nTarget hospital found: {TARGET_AHAID}")
-
-if HOSPITAL_COL in match_df.columns:
-    target_name = match_df.loc[
-        match_df["TARGET_HOSPITAL"] == 1,
-        HOSPITAL_COL
-    ].iloc[0]
-
-    print(f"Target hospital name: {target_name}")
-
-
-# ============================================================
-# 5. FIND SPECIALTY MATCHING FIELDS
-# ============================================================
-
-# Automatically finds columns with " - " in the name.
-# This captures fields like:
-#   Number of Patients - Cancer
-#   Commitment to clinical research - Cancer
-#   Expert Opinion - Cancer
-
-matching_vars = [
-    col for col in match_df.columns
-    if FIELD_SEPARATOR in col
-]
-
-if len(matching_vars) == 0:
-    raise ValueError(
-        f"No specialty matching fields found using separator '{FIELD_SEPARATOR}'. "
-        "Check your column names."
-    )
-
-print("\nSpecialty matching fields found:")
-for col in matching_vars:
-    print(f"  - {col}")
-
-
-# ============================================================
-# 6. PARSE METRIC AND SPECIALTY FROM FIELD NAMES
-# ============================================================
-
-field_map = []
-
-for col in matching_vars:
-    metric, specialty = col.split(FIELD_SEPARATOR, 1)
-
-    field_map.append({
-        "COLUMN": col,
-        "METRIC": metric.strip(),
-        "SPECIALTY": specialty.strip()
-    })
-
-field_map_df = pd.DataFrame(field_map)
-
-
-# ============================================================
-# 7. DEFINE EQUAL WEIGHTS AND SCORING METHOD
-# ============================================================
-
-def get_scoring_method(metric_name):
-    """
-    Determines whether to use percent difference or absolute difference.
-
-    For volume/count measures, percent difference is usually better.
-    For ranking/research/opinion fields, absolute difference is usually better.
-    """
-
-    metric_lower = str(metric_name).lower().strip()
-
-    volume_terms = [
-        "number of patients",
-        "number of procedures",
-        "number of surgeries",
-        "number of tests",
-        "minimally invasive",
-        "catheter",
-        "norwood",
-        "high complexity",
-        "epilepsy",
-        "workups",
-        "treatments"
-    ]
-
-    if any(term in metric_lower for term in volume_terms):
-        return "percent"
-
-    return "absolute"
-
-
-# Equal weight for every field
-field_map_df["WEIGHT"] = 1.0
-
-# Decide whether each field uses percent or absolute difference
-field_map_df["SCORING_METHOD"] = field_map_df["METRIC"].apply(get_scoring_method)
-
-print("\nField mapping, equal weights, and scoring methods:")
-print(field_map_df)
-
-
-# ============================================================
-# 8. INITIALIZE SCORING COLUMNS
-# ============================================================
-
-match_df["TOTAL_MATCH_POINTS"] = 0.0
-match_df["NUM_FIELDS_SCORED"] = 0
-
-point_cols = []
-rank_cols = []
-abs_diff_cols = []
-pct_diff_cols = []
-
-
-# ============================================================
-# 9. SCORE EVERY FIELD
-# ============================================================
-
-for _, row in field_map_df.iterrows():
-
-    var = row["COLUMN"]
-    metric = row["METRIC"]
-    specialty = row["SPECIALTY"]
-    weight = row["WEIGHT"]              # Always 1.0
-    scoring_method = row["SCORING_METHOD"]
-
-    # Convert field to numeric.
-    # Non-numeric values become missing.
-    match_df[var] = pd.to_numeric(match_df[var], errors="coerce")
-
-    target_value = match_df.loc[
-        match_df["TARGET_HOSPITAL"] == 1,
-        var
-    ].iloc[0]
-
-    # Skip this field if the target hospital has missing value
-    if pd.isna(target_value):
-        print(f"Skipping {var}: target value is missing.")
-        continue
-
-    # Create safe output column names
-    clean_var_name = (
-        var.strip()
-        .replace(" ", "_")
-        .replace("-", "")
-        .replace("/", "_")
-        .replace("(", "")
-        .replace(")", "")
-        .replace(",", "")
-        .replace(":", "")
-        .replace(";", "")
-        .replace("__", "_")
-    )
-
-    abs_diff_col = f"{clean_var_name}_ABS_DIFF"
-    pct_diff_col = f"{clean_var_name}_PCT_DIFF"
-    rank_col = f"{clean_var_name}_RANK"
-    points_col = f"{clean_var_name}_POINTS"
-
-    # Absolute difference from target hospital
-    match_df[abs_diff_col] = (
-        match_df[var] - target_value
-    ).abs()
-
-    # Percent difference from target hospital
-    if target_value != 0:
-        match_df[pct_diff_col] = (
-            match_df[abs_diff_col] / abs(target_value)
-        )
-    else:
-        match_df[pct_diff_col] = np.nan
-
-    # Decide which difference to use for ranking/scoring
-    if scoring_method == "percent" and target_value != 0:
-        diff_for_scoring = pct_diff_col
-    else:
-        diff_for_scoring = abs_diff_col
-
-    # Candidate hospitals only.
-    # This does NOT remove rows from the full dataset.
-    # It only excludes missing values for this one field's ranking.
-    candidates = match_df[
-        match_df["TARGET_HOSPITAL"] == 0
-    ].copy()
-
-    candidates = candidates[
-        candidates[diff_for_scoring].notna()
-    ].copy()
-
-    if len(candidates) == 0:
-        print(f"Skipping {var}: no non-missing candidate values.")
-        continue
-
-    # Rank all hospitals by closeness to target for this field
-    candidates = candidates.sort_values(diff_for_scoring).copy()
-    candidates[rank_col] = range(1, len(candidates) + 1)
-
-    # ------------------------------------------------------------
-    # Give points to ALL hospitals
-    # ------------------------------------------------------------
-    # Closest hospital gets MAX_POINTS_PER_FIELD.
-    # Farthest hospital gets close to 0.
-    # Everyone else gets points based on rank.
-    # ------------------------------------------------------------
-
-    if len(candidates) == 1:
-        candidates[points_col] = MAX_POINTS_PER_FIELD
-    else:
-        candidates[points_col] = (
-            MAX_POINTS_PER_FIELD
-            * (1 - ((candidates[rank_col] - 1) / (len(candidates) - 1)))
-        )
-
-    # Equal weight applied here
-    candidates[points_col] = candidates[points_col] * weight
-
-    # Create fields in full dataset
-    match_df[rank_col] = np.nan
-    match_df[points_col] = 0.0
-
-    # Add candidate ranks and points back to full dataset
-    match_df.loc[candidates.index, rank_col] = candidates[rank_col]
-    match_df.loc[candidates.index, points_col] = candidates[points_col]
-
-    # Target hospital gets zero points because it is not a candidate
-    match_df.loc[
-        match_df["TARGET_HOSPITAL"] == 1,
-        points_col
-    ] = 0.0
-
-    # Add to total match score
-    match_df["TOTAL_MATCH_POINTS"] += match_df[points_col]
-
-    # Count whether each hospital was scored for this field
-    match_df["NUM_FIELDS_SCORED"] += (
-        match_df[points_col] > 0
-    ).astype(int)
-
-    point_cols.append(points_col)
-    rank_cols.append(rank_col)
-    abs_diff_cols.append(abs_diff_col)
-    pct_diff_cols.append(pct_diff_col)
-
-
-# ============================================================
-# 10. CREATE NORMALIZED SCORE
-# ============================================================
-
-# AVG_MATCH_POINTS helps when some hospitals are missing fields.
-# Higher is better.
-
-match_df["AVG_MATCH_POINTS"] = np.where(
-    match_df["NUM_FIELDS_SCORED"] > 0,
-    match_df["TOTAL_MATCH_POINTS"] / match_df["NUM_FIELDS_SCORED"],
-    np.nan
-)
-
-
-# ============================================================
-# 11. CREATE FINAL MATCHED COHORT
-# ============================================================
-
-candidate_matches = match_df[
-    match_df["TARGET_HOSPITAL"] == 0
-].copy()
-
-candidate_matches = candidate_matches.sort_values(
-    by=[
-        "TOTAL_MATCH_POINTS",
-        "AVG_MATCH_POINTS",
-        "NUM_FIELDS_SCORED"
-    ],
-    ascending=[
-        False,
-        False,
-        False
-    ]
-)
-
-matched_cohort = candidate_matches.head(FINAL_COHORT_SIZE).copy()
-
-
-# ============================================================
-# 12. CREATE SUMMARY OUTPUT
-# ============================================================
-
-summary_cols = [
-    AHAID_COL,
-    HOSPITAL_COL,
-    "TOTAL_MATCH_POINTS",
-    "AVG_MATCH_POINTS",
-    "NUM_FIELDS_SCORED"
-]
-
-# Add original matching fields
-summary_cols += matching_vars
-
-# Keep only columns that exist
-summary_cols = [
-    col for col in summary_cols
-    if col in matched_cohort.columns
-]
-
-matched_cohort_summary = matched_cohort[summary_cols].copy()
-
-
-# ============================================================
-# 13. CREATE DETAILED OUTPUT FOR ALL HOSPITALS
-# ============================================================
-
-detailed_cols = [
-    AHAID_COL,
-    HOSPITAL_COL,
-    "TARGET_HOSPITAL",
-    "TOTAL_MATCH_POINTS",
-    "AVG_MATCH_POINTS",
-    "NUM_FIELDS_SCORED"
-]
-
-detailed_cols += matching_vars
-detailed_cols += point_cols
-detailed_cols += rank_cols
-detailed_cols += abs_diff_cols
-detailed_cols += pct_diff_cols
-
-detailed_cols = [
-    col for col in detailed_cols
-    if col in match_df.columns
-]
-
-all_hospitals_detailed = match_df[detailed_cols].copy()
-
-
-# ============================================================
-# 14. PRINT RESULTS
-# ============================================================
-
-print("\n============================================================")
-print("FINAL MATCHED COHORT")
-print("============================================================")
-
-print(matched_cohort_summary)
-
-print("\n============================================================")
-print("TARGET HOSPITAL")
-print("============================================================")
-
-target_display_cols = [
-    AHAID_COL,
-    HOSPITAL_COL
-] + matching_vars
-
-target_display_cols = [
-    col for col in target_display_cols
-    if col in match_df.columns
-]
-
-print(
-    match_df.loc[
-        match_df["TARGET_HOSPITAL"] == 1,
-        target_display_cols
-    ]
-)
-
-print("\n============================================================")
-print("SCORING FIELD SUMMARY")
-print("============================================================")
-
-print(field_map_df)
-
-print("\n============================================================")
-print("SCORING SUMMARY")
-print("============================================================")
-
-print(f"Number of matching fields scored: {len(point_cols)}")
-print(f"Maximum possible score: {len(point_cols) * MAX_POINTS_PER_FIELD}")
-print(f"Final cohort size: {len(matched_cohort_summary)}")
-
-
-# ============================================================
-# 15. EXPORT OUTPUTS
-# ============================================================
-
-matched_cohort_summary.to_csv(
-    "matched_childrens_hospital_cohort_summary.csv",
-    index=False
-)
-
-all_hospitals_detailed.to_csv(
-    "all_hospitals_with_specialty_match_scores.csv",
-    index=False
-)
-
-field_map_df.to_csv(
-    "specialty_field_mapping.csv",
-    index=False
-)
-
-print("\nFiles saved:")
-print("matched_childrens_hospital_cohort_summary.csv")
-print("all_hospitals_with_specialty_match_scores.csv")
-print("specialty_field_mapping.csv")
+SELECT *
+FROM FINAL_TABLE
