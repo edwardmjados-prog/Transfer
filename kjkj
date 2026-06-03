@@ -1,18 +1,15 @@
---======================================================================================================================================== 
--- Author:				      IDA-QSE Experience Squad
--- Create Date:			    August 2025
--- Description:			    Incrementally adding Adult_Medical_Practice survey responses to table in bronze layer
+-- ========================================================================================================================================
+-- Author:              IDA-QSE Experience Squad
+-- Create Date:         August 2025
+-- Description:         Incrementally adding Adult_Medical_Practice survey responses to table in bronze layer
 -- Primary Database:    CARE_BRONZE_DEV.EXPERIENCE
 -- Role                 SFK_EIM_CLOUD_DVLPR_U
--- ======================================================================================================================================== 
-
+-- ========================================================================================================================================
 --========================== CONFIG SECTION ==========================
-
 {{ config(
     materialized='incremental',
     incremental_strategy='append',
     on_schema_change='append_new_columns',
-
     pre_hook=[
       '{% if is_incremental() %}
         -- Close out previously current rows for ResponseIds present in the staging batch
@@ -26,10 +23,9 @@
           );
       {% endif %}'
     ],
-
     post_hook=[
       '
-        -- Runs on first build too, Mark the single latest LOADED_AT row per ResponseId as current
+        -- Runs on first build too. Mark the single latest LOADED_AT row per ResponseId as current.
         UPDATE {{ this }} t
         SET IS_CURRENT = TRUE,
             EFFECTIVE_END_TS = NULL
@@ -47,11 +43,12 @@
           )
           WHERE rn = 1
         );
-
-        -- Dedup existing table rows: for duplicate (ResponseId, LAST_MODIFIED_TS), keep ONLY the row with IS_CURRENT=TRUE; if none are TRUE, keep the newest LOADED_AT
+        -- Dedup existing table rows: for duplicate (ResponseId, LAST_MODIFIED_TS),
+        -- keep the row with the OLDEST LOADED_AT (i.e. first time we saw this version).
+        -- Exception: if IS_CURRENT=TRUE is among the duplicates, that row wins regardless.
         DELETE FROM {{ this }}
-        WHERE ("ResponseId","LAST_MODIFIED_TS","LOADED_AT") IN (
-          SELECT "ResponseId","LAST_MODIFIED_TS","LOADED_AT"
+        WHERE ("ResponseId", "LAST_MODIFIED_TS", "LOADED_AT") IN (
+          SELECT "ResponseId", "LAST_MODIFIED_TS", "LOADED_AT"
           FROM (
             SELECT
               "ResponseId",
@@ -61,22 +58,18 @@
               IS_CURRENT,
               ROW_NUMBER() OVER (
                 PARTITION BY "ResponseId", LAST_MODIFIED_TS
-                ORDER BY IS_CURRENT DESC, LOADED_AT DESC, EFFECTIVE_START_TS DESC
+                -- IS_CURRENT=TRUE wins; among ties, keep the OLDEST LOADED_AT
+                ORDER BY IS_CURRENT DESC, LOADED_AT ASC, EFFECTIVE_START_TS ASC
               ) AS rn
             FROM {{ this }}
           )
           WHERE rn > 1
         );
       ',
-
       "DROP TABLE IF EXISTS CARE_BRONZE_DEV.EXPERIENCE.ADULT_MEDICAL_PRACTICE_RESPONSES_STG"
     ]
 ) }}
-
-
-
 --========================== TABLE BUILDING SECTION ==========================
-
 WITH delta AS (
   SELECT
     s.*,
@@ -84,9 +77,9 @@ WITH delta AS (
     CURRENT_TIMESTAMP() AS LOADED_AT
   FROM {{ source('care_EXPERIENCE_BRONZE','ADULT_MEDICAL_PRACTICE_RESPONSES_STG') }} s
 ),
-
--- Dedup the incoming batch by (ResponseId, LAST_MODIFIED_TS),
--- keeping the latest LOADED_AT (and EFFECTIVE_START_TS as a tie-breaker)
+-- Dedup the incoming batch by (ResponseId, LAST_MODIFIED_TS).
+-- For identical (ResponseId, LastModifiedDate) within the same batch,
+-- keep the OLDEST LOADED_AT — first-seen wins for snapshot fidelity.
 dedup_delta AS (
   SELECT
     d.* EXCLUDE ("LastModifiedDate", "Q_RecaptchaStatus", "Q_RecaptchaScore", "Q_RecaptchaError"),
@@ -96,12 +89,12 @@ dedup_delta AS (
   FROM delta d
   QUALIFY ROW_NUMBER() OVER (
     PARTITION BY d."ResponseId", d.LAST_MODIFIED_TS
-    ORDER BY d.LOADED_AT DESC, COALESCE(d.LAST_MODIFIED_TS, d.LOADED_AT) DESC
+    -- Keep the OLDEST LOADED_AT when ResponseId + LastModifiedDate are identical
+    ORDER BY d.LOADED_AT ASC, COALESCE(d.LAST_MODIFIED_TS, d.LOADED_AT) ASC
   ) = 1
 )
-
 SELECT *
 FROM dedup_delta
 WHERE "StartDate" NOT IN ('Start Date')
-AND "StartDate" != '{"ImportId":"startDate","timeZone":"Z"}'
-AND "DistributionChannel" NOT IN ('preview', 'preview=', 'anonymous')
+  AND "StartDate" != '{"ImportId":"startDate","timeZone":"Z"}'
+  AND "DistributionChannel" NOT IN ('preview', 'preview=', 'anonymous')
