@@ -96,22 +96,30 @@ dedup_delta AS (
 
 dedup_with_stable_loaded_at AS (
   -- For any (ResponseId, LAST_MODIFIED_TS) that already exists in the target,
-  -- inherit the existing LOADED_AT so first-seen timestamp is preserved.
-  -- For genuinely new combinations, stamp with CURRENT_TIMESTAMP().
+  -- inherit the oldest LOADED_AT ever recorded for that combination.
+  -- We use MIN(LOADED_AT) in a subquery rather than joining on IS_CURRENT=TRUE
+  -- because the pre_hook has already flipped IS_CURRENT=FALSE by the time
+  -- this SELECT executes — a direct IS_CURRENT filter would miss all existing rows.
   SELECT
     d.* EXCLUDE (LOADED_AT),
     COALESCE(
       {% if is_incremental() %}
-        t.LOADED_AT,    -- existing row wins: preserve the oldest LOADED_AT
+        t.OLDEST_LOADED_AT,
       {% endif %}
-      d.LOADED_AT       -- no existing row: stamp with current time
+      d.LOADED_AT
     ) AS LOADED_AT
   FROM dedup_delta d
   {% if is_incremental() %}
-  LEFT JOIN {{ this }} t
+  LEFT JOIN (
+    SELECT
+      "ResponseId",
+      LAST_MODIFIED_TS,
+      MIN(LOADED_AT) AS OLDEST_LOADED_AT
+    FROM {{ this }}
+    GROUP BY "ResponseId", LAST_MODIFIED_TS
+  ) t
     ON  t."ResponseId"     = d."ResponseId"
     AND t.LAST_MODIFIED_TS = d.LAST_MODIFIED_TS
-    AND t.IS_CURRENT       = TRUE  -- join to live row only to avoid fan-out
   {% endif %}
 )
 
