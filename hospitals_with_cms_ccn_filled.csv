@@ -1,0 +1,94 @@
+HOSPITAL_REPORT_ID,HOSPITAL_CCN_ID,CMS_CCN_FILLED,HOSPITAL_NAME,CMS_FACILITY_NAME_MATCHED,MATCH_CONFIDENCE,MATCH_NOTE,SOURCE_URL
+6310110,,083300,"Nemours Children's Hospital-Delaware, Wilmington",NEMOURS CHILDREN'S HOSPITAL-DELAWARE,High,,https://www.ahd.com/free_profile/083300/Nemours_Children%27s_Hospital-Delaware/Wilmington/Delaware/
+6410391,,363300,"Cincinnati Children's, Cincinnati",CINCINNATI CHILDREN'S HOSPITAL MEDICAL CENTER,High,,https://www.ahd.com/free_profile/363300/Cincinnati_Children%27s_Hospital_Medical_Center/Cincinnati/Ohio/
+6390900,,103300,Johns Hopkins All Children's Hospital,JOHNS HOPKINS ALL CHILDREN'S HOSPITAL,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6160450,,073300,Connecticut Children's Medical Center,CONNECTICUT CHILDREN'S MEDICAL CENTER,High,,https://www.ahd.com/free_profile/073300/Connecticut_Children%27s_Medical_Center/Hartford/Connecticut/
+6390687,,103304,"Nemours Children's Hospital-Florida, Orlando","NEMOURS CHILDREN'S HOSPITAL, FLORIDA",High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6390900,,103300,"Johns Hopkins All Children's Hospital, St. Petersburg, Fla.",JOHNS HOPKINS ALL CHILDREN'S HOSPITAL,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6380021,,113300,Children's Healthcare of Atlanta,ARTHUR M. BLANK HOSPITAL / CHILDREN'S HEALTHCARE OF ATLANTA EGLeston,Medium,Input is system-level CHOA; used Arthur M. Blank/Egleston CCN. Scottish Rite is a separate CHOA CCN 113301.,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6840280,,063301,Children's Hospital Colorado,CHILDREN'S HOSPITAL COLORADO,High,,https://www.ahd.com/free_profile/063301/Children%27s_Hospital_Colorado/Aurora/Colorado/
+6741425,,453300,"Cook Children's Medical Center, Fort Worth, Texas",COOK CHILDREN'S MEDICAL CENTER,High,,https://www.ahd.com/free_profile/453300/Cook_Children%27s_Medical_Center/Fort_Worth/Texas/
+6720520,,193300,Children's Hospital New Orleans,CHILDREN'S HOSPITAL NEW ORLEANS / MANNING FAMILY CHILDREN'S,High,,https://www.ahd.com/free_profile/193300/Children%27s_Hospital/New_Orleans/Louisiana/
+6932287,,053304,CHOC Children's Hospital,CHILDREN'S HOSPITAL OF ORANGE COUNTY,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6430560,,143300,Ann and Robert H. Lurie Children's Hospital-Prentice Women's Hospital,ANN & ROBERT H. LURIE CHILDREN'S HOSPITAL OF CHICAGO,High,,https://www.ahd.com/free_profile/143300/Ann_%26_Robert_H_Lurie_Children%27s_Hospital_of_Chicago/Chicago/Illinois/
+6740222,,453315,Children's Hospital of San Antonio,CHILDREN'S HOSPITAL OF SAN ANTONIO,High,,https://www.ahd.com/free_profile/453315/Children%27s_Hospital_of_San_Antonio/San_Antonio/Texas/
+6710340,,043300,Arkansas Children's Hospital,ARKANSAS CHILDREN'S HOSPITAL,High,,https://www.ahd.com/free_profile/043300/Arkansas_Children%27s_Hospital/Little_Rock/Arkansas/
+6710340,,043300,"Arkansas Children's Hospital, Little Rock",ARKANSAS CHILDREN'S HOSPITAL,High,,https://www.ahd.com/free_profile/043300/Arkansas_Children%27s_Hospital/Little_Rock/Arkansas/
+6931470,,053302,Children's Hospital Los Angeles,CHILDREN'S HOSPITAL LOS ANGELES,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6932775,,053303,"Rady Children's Hospital, San Diego",RADY CHILDREN'S HOSPITAL - SAN DIEGO,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6510540,,183300,"Norton Children's Hospital, Louisville, Ky.",NORTON CHILDREN'S HOSPITAL,High,,https://www.ahd.com/free_profile/183300/Norton_Children%27s_Hospital/Louisville/Kentucky/
+6932775,,053303,Rady Children's Hospital,RADY CHILDREN'S HOSPITAL - SAN DIEGO,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6231730,,393303,Children's Hospital of Philadelphia,CHILDREN'S HOSPITAL OF PHILADELPHIA,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6330030,,093300,"Children's National Hospital, Washington",CHILDREN'S NATIONAL HOSPITAL,High,,https://www.ahd.com/free_profile/093300/Children%27s_National_Hospital/Washington/District_of_Columbia/
+6510540,,183300,Norton Children's Hospital,NORTON CHILDREN'S HOSPITAL,High,,https://www.ahd.com/free_profile/183300/Norton_Children%27s_Hospital/Louisville/Kentucky/
+6930103,,053309,MemorialCare Miller Children's and Women's Hospital Long Beach,LONG BEACH MEMORIAL MEDICAL / MILLER CHILDREN'S & WOMEN'S,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6232430,,393302,UPMC Children's Hospital of Pittsburgh-Shriners Hospitals for Children Erie,UPMC CHILDREN'S HOSPITAL OF PITTSBURGH,High,,https://www.ahd.com/free_profile/393302/UPMC_Children%27s_Hospital_of_Pittsburgh/Pittsburgh/Pennsylvania/
+6390625,,103301,"Nicklaus Children's Hospital, Miami",NICKLAUS CHILDREN'S HOSPITAL / VARIETY CHILDREN'S,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6740147,,453310,"Dell Children's Medical Center, Austin, Texas",DELL CHILDREN'S MEDICAL CENTER,High,,https://www.ahd.com/free_profile/453310/Dell_Children%27s_Medical_Center/Austin/Texas/
+6870280,,463301,"Intermountain Primary Children's Hospital-University of Utah, Salt Lake City",PRIMARY CHILDREN'S HOSPITAL,High,,https://www.ahd.com/free_profile/463301/Primary_Children%27s_Hospital/Salt_Lake_City/Utah/
+6630945,,263300,SSM Health Cardinal Glennon Children's Hospital-St. Louis University,SSM CARDINAL GLENNON CHILDREN'S HOSPITAL,High,,https://nosorh.org/wp-content/uploads/2022/05/GME131Elig_MO.pdf
+6451030,,523300,Children's Wisconsin Hospital,CHILDREN'S WISCONSIN,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6451030,,523300,Children's Wisconsin,CHILDREN'S WISCONSIN,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6140270,,223302,Boston Children's Hospital,BOSTON CHILDREN'S HOSPITAL,High,,https://www.ahd.com/free_profile/223302/Boston_Children%27s_Hospital/Boston/Massachusetts/
+6440480,,233300,Children's Hospital of Michigan,CHILDREN'S HOSPITAL OF MICHIGAN,High,,https://www.ahd.com/free_profile/233300/Children%27s_Hospital_of_Michigan/Detroit/Michigan/
+6910560,,503300,Seattle Children's Hospital,SEATTLE CHILDREN'S HOSPITAL,High,,https://www.medicare.gov/care-compare/details/hospital/503300/view-all
+6740222,,453315,"CHRISTUS Children's, San Antonio",CHILDREN'S HOSPITAL OF SAN ANTONIO,High,,https://www.ahd.com/free_profile/453315/Children%27s_Hospital_of_San_Antonio/San_Antonio/Texas/
+6870280,,463301,Intermountain Primary Children's Hospital-Shriners Hospitals for Children-University of Utah,PRIMARY CHILDREN'S HOSPITAL,High,,https://www.ahd.com/free_profile/463301/Primary_Children%27s_Hospital/Salt_Lake_City/Utah/
+6742018,,453304,"Texas Children's Hospital, Houston",TEXAS CHILDREN'S HOSPITAL,High,,https://www.medicare.gov/care-compare/details/hospital/453304/view-all
+6870280,,463301,Intermountain Primary Children's Hospital-University of Utah,PRIMARY CHILDREN'S HOSPITAL,High,,https://www.ahd.com/free_profile/463301/Primary_Children%27s_Hospital/Salt_Lake_City/Utah/
+6430560,,143300,Ann & Robert H. Lurie Children's Hospital of Chicago,ANN & ROBERT H. LURIE CHILDREN'S HOSPITAL OF CHICAGO,High,,https://www.ahd.com/free_profile/143300/Ann_%26_Robert_H_Lurie_Children%27s_Hospital_of_Chicago/Chicago/Illinois/
+6330030,,093300,Children's National Hospital,CHILDREN'S NATIONAL HOSPITAL,High,,https://www.ahd.com/free_profile/093300/Children%27s_National_Hospital/Washington/District_of_Columbia/
+6410922,,363302,Rainbow Babies and Children's Hospital,RAINBOW BABIES AND CHILDREN'S HOSPITAL,High,,https://www.ahd.com/free_profile/363302/Rainbow_Babies_and_Children%27s_Hospital/Cleveland/Ohio/
+6411160,,363306,"Dayton Children's Hospital, Dayton, Ohio",DAYTON CHILDREN'S HOSPITAL,High,,https://www.ahd.com/free_profile/363306/Dayton_Children%27s_Hospital_/Dayton/Ohio/
+6720743,,190317,Ochsner LSU Health Shreveport-St. Mary Medical Center,OCHSNER LSU HEALTH SHREVEPORT - ST MARY MEDICAL CENTER,High,"This is a short-term acute-care CCN, not a freestanding children's-hospital CCN.",https://www.ahd.com/free_profile/190317/Ochsner-LSU-Health---St-Mary-Medical-Center/Shreveport/Louisiana/
+6860210,,033302,Phoenix Children's Hospital,PHOENIX CHILDREN'S HOSPITAL,High,,https://www.ahd.com/free_profile/033302/Phoenix_Children%27s_Hospital/Phoenix/Arizona/
+6930206,,050778,Loma Linda University Children's Hospital,LOMA LINDA UNIVERSITY CHILDREN'S HOSPITAL,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6660635,,283301,Children's Hospital and Medical Center,CHILDREN'S HOSPITAL & MEDICAL CENTER / CHILDREN'S NEBRASKA,High,,https://www.ahd.com/free_profile/283301/Children%27s_Hospital_%26_Medical_Center/Omaha/Nebraska/
+6410055,,363303,"Akron Children's Hospital, Akron, Ohio",AKRON CHILDREN'S HOSPITAL,High,,https://www.ahd.com/free_profile/363303/Akron_Children%27s_Hospital/Akron/Ohio/
+6520815,,443302,St. Jude Children's Research Hospital,ST JUDE CHILDREN'S RESEARCH HOSPITAL,High,,https://www.medicare.gov/care-compare/details/hospital/443302/view-all
+6440480,,233300,"Children's Hospital of Michigan, Detroit",CHILDREN'S HOSPITAL OF MICHIGAN,High,,https://www.ahd.com/free_profile/233300/Children%27s_Hospital_of_Michigan/Detroit/Michigan/
+6930814,,053300,Valley Children's Healthcare and Hospital,VALLEY CHILDREN'S HOSPITAL,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6930814,,053300,"Valley Children's Healthcare and Hospital, Madera, Calif.",VALLEY CHILDREN'S HOSPITAL,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6410391,,363300,Cincinnati Children's,CINCINNATI CHILDREN'S HOSPITAL MEDICAL CENTER,High,,https://www.ahd.com/free_profile/363300/Cincinnati_Children%27s_Hospital_Medical_Center/Cincinnati/Ohio/
+6630340,,263302,Children's Mercy Kansas City Hospital,THE CHILDREN'S MERCY HOSPITAL,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6430560,,143300,Ann and Robert H. Lurie Children's Hospital of Chicago,ANN & ROBERT H. LURIE CHILDREN'S HOSPITAL OF CHICAGO,High,,https://www.ahd.com/free_profile/143300/Ann_%26_Robert_H_Lurie_Children%27s_Hospital_of_Chicago/Chicago/Illinois/
+6631180,,263301,St. Louis Children's Hospital-Washington University/Shriners Hospital,ST LOUIS CHILDREN'S HOSPITAL,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6411160,,363306,Dayton Children's Hospital,DAYTON CHILDREN'S HOSPITAL,High,,https://www.ahd.com/free_profile/363306/Dayton_Children%27s_Hospital_/Dayton/Ohio/
+6933605,,053305,Lucile Packard Children's Hospital Stanford,LUCILE SALTER PACKARD CHILDREN'S HOSPITAL AT STANFORD,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6840280,,063301,"Children's Hospital Colorado, Aurora",CHILDREN'S HOSPITAL COLORADO,High,,https://www.ahd.com/free_profile/063301/Children%27s_Hospital_Colorado/Aurora/Colorado/
+6530170,,013300,"Children's Hospital of Alabama at UAB, Birmingham",CHILDREN'S HOSPITAL OF ALABAMA,High,,https://www.ahd.com/free_profile/013300/Children%27s_Hospital_of_Alabama/Birmingham/
+6950335,,123300,Kapi'olani Medical Center for Women and Children,KAPIOLANI MEDICAL CENTER FOR WOMEN & CHILDREN,High,,https://www.ahd.com/free_profile/123300/Kapi_olani-Medical-Center-for-Women-_-Children/Honolulu/Hawaii/
+6451030,,523300,"Children's Wisconsin Hospital, Milwaukee",CHILDREN'S WISCONSIN,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6742018,,453304,Texas Children's Hospital,TEXAS CHILDREN'S HOSPITAL,High,,https://www.medicare.gov/care-compare/details/hospital/453304/view-all
+6630340,,263302,"Children's Mercy Kansas City Hospital, Kansas City, Mo.",THE CHILDREN'S MERCY HOSPITAL,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6932287,,053304,"CHOC Children's Hospital, Orange, Calif.",CHILDREN'S HOSPITAL OF ORANGE COUNTY,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6232430,,393302,"UPMC Children's and Western Psychiatric Hospitals, Pittsburgh",UPMC CHILDREN'S HOSPITAL OF PITTSBURGH,High,,https://www.ahd.com/free_profile/393302/UPMC_Children%27s_Hospital_of_Pittsburgh/Pittsburgh/Pennsylvania/
+6930103,,053309,"MemorialCare Miller Children's and Women's Hospital Long Beach, Calif.",LONG BEACH MEMORIAL MEDICAL / MILLER CHILDREN'S & WOMEN'S,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6870280,,463301,"Intermountain Primary Children's Hospital-Shriners Hospitals for Children-University of Utah, Salt Lake City",PRIMARY CHILDREN'S HOSPITAL,High,,https://www.ahd.com/free_profile/463301/Primary_Children%27s_Hospital/Salt_Lake_City/Utah/
+6631180,,263301,St. Louis Children's Hospital-Washington University/Shriners Children's St. Louis,ST LOUIS CHILDREN'S HOSPITAL,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6140270,,223302,Dana-Farber/Boston Children's Cancer and Blood Disorders Center,BOSTON CHILDREN'S HOSPITAL,High,,https://www.ahd.com/free_profile/223302/Boston_Children%27s_Hospital/Boston/Massachusetts/
+6232430,,393302,UPMC Children's Hospital of Pittsburgh,UPMC CHILDREN'S HOSPITAL OF PITTSBURGH,High,,https://www.ahd.com/free_profile/393302/UPMC_Children%27s_Hospital_of_Pittsburgh/Pittsburgh/Pennsylvania/
+6660706,,283300,Boys Town National Research Hospital,BOYS TOWN NATIONAL RESEARCH HOSPITAL,High,,https://www.ahd.com/free_profile/283300/Boys_Town_National_Research_Hospital/Omaha/Nebraska/
+6160450,,073300,"Connecticut Children's Medical Center, Hartford",CONNECTICUT CHILDREN'S MEDICAL CENTER,High,,https://www.ahd.com/free_profile/073300/Connecticut_Children%27s_Medical_Center/Hartford/Connecticut/
+6410950,,363305,Nationwide Children's Hospital,NATIONWIDE CHILDREN'S HOSPITAL,High,,https://www.ahd.com/free_profile/363305/Nationwide_Children%27s_Hospital/Columbus/Ohio/
+6410950,,363305,"Nationwide Children's Hospital, Columbus, Ohio",NATIONWIDE CHILDREN'S HOSPITAL,High,,https://www.ahd.com/free_profile/363305/Nationwide_Children%27s_Hospital/Columbus/Ohio/
+6933605,,053305,"Lucile Packard Children's Hospital Stanford, Palo Alto, Calif.",LUCILE SALTER PACKARD CHILDREN'S HOSPITAL AT STANFORD,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6530170,,013300,Children's Hospital of Alabama at UAB,CHILDREN'S HOSPITAL OF ALABAMA,High,,https://www.ahd.com/free_profile/013300/Children%27s_Hospital_of_Alabama/Birmingham/
+6660635,,283301,"Children's Nebraska, Omaha",CHILDREN'S HOSPITAL & MEDICAL CENTER / CHILDREN'S NEBRASKA,High,,https://www.ahd.com/free_profile/283301/Children%27s_Hospital_%26_Medical_Center/Omaha/Nebraska/
+6410922,,363302,"Rainbow Babies and Children's Hospital, Cleveland",RAINBOW BABIES AND CHILDREN'S HOSPITAL,High,,https://www.ahd.com/free_profile/363302/Rainbow_Babies_and_Children%27s_Hospital/Cleveland/Ohio/
+6410391,,363300,Cincinnati Children's Hospital Medical Center,CINCINNATI CHILDREN'S HOSPITAL MEDICAL CENTER,High,,https://www.ahd.com/free_profile/363300/Cincinnati_Children%27s_Hospital_Medical_Center/Cincinnati/Ohio/
+6660635,,283301,Children's Nebraska,CHILDREN'S HOSPITAL & MEDICAL CENTER / CHILDREN'S NEBRASKA,High,,https://www.ahd.com/free_profile/283301/Children%27s_Hospital_%26_Medical_Center/Omaha/Nebraska/
+6631180,,263301,St. Louis Children's Hospital-Washington University,ST LOUIS CHILDREN'S HOSPITAL,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6740222,,453315,CHRISTUS Children's,CHILDREN'S HOSPITAL OF SAN ANTONIO,High,,https://www.ahd.com/free_profile/453315/Children%27s_Hospital_of_San_Antonio/San_Antonio/Texas/
+6740147,,453310,Dell Children's Medical Center,DELL CHILDREN'S MEDICAL CENTER,High,,https://www.ahd.com/free_profile/453310/Dell_Children%27s_Medical_Center/Austin/Texas/
+6741425,,453300,Cook Children's Medical Center,COOK CHILDREN'S MEDICAL CENTER,High,,https://www.ahd.com/free_profile/453300/Cook_Children%27s_Medical_Center/Fort_Worth/Texas/
+6390687,,103304,Nemours Children's Hospital-Florida,"NEMOURS CHILDREN'S HOSPITAL, FLORIDA",High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6310110,,083300,Nemours Children's Hospital-Delaware,NEMOURS CHILDREN'S HOSPITAL-DELAWARE,High,,https://www.ahd.com/free_profile/083300/Nemours_Children%27s_Hospital-Delaware/Wilmington/Delaware/
+6930206,,050778,"Loma Linda University Children's Hospital, Loma Linda, Calif.",LOMA LINDA UNIVERSITY CHILDREN'S HOSPITAL,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6390625,,103301,Nicklaus Children's Hospital,NICKLAUS CHILDREN'S HOSPITAL / VARIETY CHILDREN'S,High,,https://www.cms.gov/files/document/odacs-provider-ccn-table.pdf
+6410055,,363303,Akron Children's Hospital,AKRON CHILDREN'S HOSPITAL,High,,https://www.ahd.com/free_profile/363303/Akron_Children%27s_Hospital/Akron/Ohio/
+6520815,,443302,"St. Jude Children's Research Hospital, Memphis, Tenn.",ST JUDE CHILDREN'S RESEARCH HOSPITAL,High,,https://www.medicare.gov/care-compare/details/hospital/443302/view-all
+6410391,,363300,Cincinnati Children's and Kentucky Children's Hospital Joint Heart Program,CINCINNATI CHILDREN'S HOSPITAL MEDICAL CENTER,High,,https://www.ahd.com/free_profile/363300/Cincinnati_Children%27s_Hospital_Medical_Center/Cincinnati/Ohio/
+6740038,,453306,Covenant Children's Hospital,COVENANT CHILDREN'S HOSPITAL,High,,https://www.ahd.com/free_profile/453306/Covenant_Children%27s_Hospital/Lubbock/Texas/
+6430560,,143300,"Ann and Robert H. Lurie Children's Hospital-Prentice Women's Hospital, Chicago",ANN & ROBERT H. LURIE CHILDREN'S HOSPITAL OF CHICAGO,High,,https://www.ahd.com/free_profile/143300/Ann_%26_Robert_H_Lurie_Children%27s_Hospital_of_Chicago/Chicago/Illinois/
+6950335,,123300,"Kapiolani Medical Center for Women and Children, Honolulu",KAPIOLANI MEDICAL CENTER FOR WOMEN & CHILDREN,High,,https://www.ahd.com/free_profile/123300/Kapi_olani-Medical-Center-for-Women-_-Children/Honolulu/Hawaii/
