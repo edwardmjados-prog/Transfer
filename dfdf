@@ -3,59 +3,75 @@ SELECT DISTINCT
     , pe.PAT_ENC_CSN_ID AS PAT_ENC_CSN_ID
     , har.HSP_ACCOUNT_ID AS HSP_ACCOUNT_ID
     , CAST(pe.CONTACT_DATE AS DATE) AS CONTACT_DATE
-    , pe.CHECKIN_TIME AS  CHECKIN_TIME
+    , pe.CHECKIN_TIME AS CHECKIN_TIME
     , pe.CHECKIN_USER_ID AS CHECKIN_USER
     , pe.CHECK_IN_KIOSK_ID AS CHECKIN_KIOSK
     , kkr.KIOSK_KICK_ACTION_C AS KIOSK_ACTION
     , CASE
-        WHEN (pe.CHECK_IN_KIOSK_ID IS NULL) /*didn't check in on kiosk*/
-             AND
-             (SELECT count(*)
-                 FROM CARE_BRONZE_CLARITY_PROD.dbo.KIOSK_KICK_REASONS kkr2
-                 WHERE kkr2.PAT_ENC_CSN_ID = pe.PAT_ENC_CSN_ID
-                       AND kkr2.KIOSK_KICK_ACTION_C = 0) > 0 THEN 'KICK'   /*and had a Kiosk kick action 0 = Error then front desk with kick out*/
-        WHEN (pe.CHECK_IN_KIOSK_ID IS NOT NULL) /*checked in on kiosk*/
-             AND
-             (SELECT count(*)
-                 FROM CARE_BRONZE_CLARITY_PROD.dbo.KIOSK_KICK_REASONS kkr3
-                 WHERE kkr3.PAT_ENC_CSN_ID = pe.PAT_ENC_CSN_ID
-                       AND kkr3.KIOSK_KICK_ACTION_C = 2) > 0 THEN 'SIGNED' /* and had Kiosk kick action 2 = Sign In then sign*/
-        WHEN (pe.CHECK_IN_KIOSK_ID IS NOT NULL) THEN 'KIOSK CHECK IN' /*used kiosk to check in and no kick out action then kiosk check in*/
-        ELSE 'FRONT DESK'   /*none of the above means check in at desk*/
-    END AS CHECK_IN_RESULT /*took this logic from CAD055*/
+        WHEN (pe.CHECK_IN_KIOSK_ID IS NULL)
+             AND (SELECT COUNT(*)
+                  FROM CARE_BRONZE_CLARITY_PROD.dbo.KIOSK_KICK_REASONS kkr2
+                  WHERE kkr2.PAT_ENC_CSN_ID = pe.PAT_ENC_CSN_ID
+                    AND kkr2.KIOSK_KICK_ACTION_C = 0) > 0 THEN 'KICK'
+        WHEN (pe.CHECK_IN_KIOSK_ID IS NOT NULL)
+             AND (SELECT COUNT(*)
+                  FROM CARE_BRONZE_CLARITY_PROD.dbo.KIOSK_KICK_REASONS kkr3
+                  WHERE kkr3.PAT_ENC_CSN_ID = pe.PAT_ENC_CSN_ID
+                    AND kkr3.KIOSK_KICK_ACTION_C = 2) > 0 THEN 'SIGNED'
+        WHEN (pe.CHECK_IN_KIOSK_ID IS NOT NULL) THEN 'KIOSK CHECK IN'
+        ELSE 'FRONT DESK'
+    END AS CHECK_IN_RESULT
   , CASE
       WHEN pesr.PX_LTR < 0 AND (pesr.R_LTR = 'Not Applicable in Survey' OR pesr.R_LTR = '') THEN NULL
       WHEN pesr.PX_LTR IN (9, 10) OR pesr.R_LTR = 'Definitely Yes' THEN 1
       ELSE 0
     END AS TOP_BOX_LTR_NUMERATOR
-  , CASE WHEN (pesr.PX_LTR >= 0) OR pesr.R_LTR IN ('Definitely No', 'Definitely Yes', 'Probably No', 'Probably Yes') THEN 1 ELSE 0 END AS TOP_BOX_LTR_DENOMINATOR
   , CASE
-    WHEN pesr.PX_ARRV_EASE = 'Not Applicable in Survey' OR pesr.PX_ARRV_EASE = '' THEN NULL
-    WHEN pesr.PX_ARRV_EASE = 'Very Easy' THEN 1
-    ELSE 0
+      WHEN (pesr.PX_LTR >= 0) OR pesr.R_LTR IN ('Definitely No', 'Definitely Yes', 'Probably No', 'Probably Yes') THEN 1
+      ELSE 0
+    END AS TOP_BOX_LTR_DENOMINATOR
+  , CASE
+      WHEN pesr.PX_ARRV_EASE IN ('Not Applicable in Survey', '') THEN NULL
+      WHEN pesr.PX_ARRV_EASE = 'Very Easy' THEN 1
+      ELSE 0
     END AS TOP_BOX_ARRV_NUMERATOR
-  , CASE WHEN pesr.PX_ARRV_EASE IN ('Very Difficult', 'Somewhat Difficult', 'Somewhat Easy', 'Very Easy', 'Neither Easy Nor Difficult') THEN 1 ELSE NULL END AS TOP_BOX_ARRV_DENOMINATOR
+  , CASE
+      WHEN pesr.PX_ARRV_EASE IN ('Very Difficult', 'Somewhat Difficult', 'Somewhat Easy', 'Very Easy', 'Neither Easy Nor Difficult') THEN 1
+      ELSE NULL
+    END AS TOP_BOX_ARRV_DENOMINATOR
 
+    -- NEW FIELD: 1 if patient logged into MyChart on visit date or up to 3 days prior
+  , CASE
+      WHEN EXISTS (
+          SELECT 1
+          FROM CARE_BRONZE_CLARITY_PROD.DBO.MYC_PATIENT mycp2
+          JOIN CARE_BRONZE_CLARITY_PROD.DBO.MYC_PT_USER_ACCSS mycua2
+            ON mycp2.MYPT_ID = mycua2.MYPAT_ID
+          WHERE mycp2.PAT_ID = pesr.PATIENT_UNIQUE_ID
+            AND mycua2.MYC_UA_TYPE_C = 1
+            AND CAST(mycua2.UA_TIME AS DATE)
+                BETWEEN DATEADD(day, -3, pesr.VISIT_DATE) AND pesr.VISIT_DATE
+      ) THEN 1
+      ELSE 0
+    END AS MYCHART_LOGIN_PRE_VISIT
 
 FROM CARE_SILVER_DEV.EXPERIENCE.PATIENT_EXPERIENCE_SURVEY_RESPONSES pesr
-
-LEFT JOIN CARE_BRONZE_CLARITY_PROD.dbo.PAT_ENC pe ON pesr.VISIT_UNIQUE_ID = pe.PAT_ENC_CSN_ID
-
-LEFT JOIN CARE_BRONZE_CLARITY_PROD.dbo.KIOSK_KICK_REASONS kkr ON pe.PAT_ENC_CSN_ID = kkr.PAT_ENC_CSN_ID
-
-LEFT JOIN CARE_BRONZE_CLARITY_PROD.dbo.PAT_ENC_HSP peh ON pe.PAT_ENC_CSN_ID = peh.PAT_ENC_CSN_ID
-
-LEFT JOIN CARE_BRONZE_CLARITY_PROD.dbo.HSP_ACCT_PAT_CSN csn ON COALESCE(pe.PAT_ENC_CSN_ID, peh.PAT_ENC_CSN_ID) = csn.PAT_ENC_CSN_ID
-
-LEFT JOIN CARE_BRONZE_CLARITY_PROD.dbo.HSP_ACCOUNT har ON csn.HSP_ACCOUNT_ID = har.HSP_ACCOUNT_ID
-
-LEFT JOIN CARE_BRONZE_CLARITY_PROD.DBO.MYC_PATIENT mycp ON pesr.PATIENT_UNIQUE_ID = mycp.PAT_ID 
-
-LEFT JOIN CARE_BRONZE_CLARITY_PROD.DBO.MYC_PT_USER_ACCSS mycua ON mycp.MYPT_ID = mycua.MYPAT_ID WHERE MYUC_UA_TYPE_C = 1
-
-
+LEFT JOIN CARE_BRONZE_CLARITY_PROD.dbo.PAT_ENC pe
+       ON pesr.VISIT_UNIQUE_ID = pe.PAT_ENC_CSN_ID
+LEFT JOIN CARE_BRONZE_CLARITY_PROD.dbo.KIOSK_KICK_REASONS kkr
+       ON pe.PAT_ENC_CSN_ID = kkr.PAT_ENC_CSN_ID
+LEFT JOIN CARE_BRONZE_CLARITY_PROD.dbo.PAT_ENC_HSP peh
+       ON pe.PAT_ENC_CSN_ID = peh.PAT_ENC_CSN_ID
+LEFT JOIN CARE_BRONZE_CLARITY_PROD.dbo.HSP_ACCT_PAT_CSN csn
+       ON COALESCE(pe.PAT_ENC_CSN_ID, peh.PAT_ENC_CSN_ID) = csn.PAT_ENC_CSN_ID
+LEFT JOIN CARE_BRONZE_CLARITY_PROD.dbo.HSP_ACCOUNT har
+       ON csn.HSP_ACCOUNT_ID = har.HSP_ACCOUNT_ID
+-- mycp/mycua removed from FROM clause; moved into EXISTS subquery above
 
 WHERE pesr.VISIT_ID_TYPE = 'ENC'
-AND ((pesr.VISIT_DATE = pe.CONTACT_DATE AND pesr.VISIT_DATE IS NOT NULL) OR (pe.CHECKIN_TIME IS NOT NULL AND pesr.VISIT_DATE IS NULL))
-AND IS_CURRENT = 'TRUE'
-AND RESPONSE_REMOVAL_FLAG <> 'unfavored'
+  AND (
+        (pesr.VISIT_DATE = pe.CONTACT_DATE AND pesr.VISIT_DATE IS NOT NULL)
+     OR (pe.CHECKIN_TIME IS NOT NULL AND pesr.VISIT_DATE IS NULL)
+      )
+  AND IS_CURRENT = 'TRUE'
+  AND RESPONSE_REMOVAL_FLAG <> 'unfavored'
