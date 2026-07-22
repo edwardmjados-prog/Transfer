@@ -1,0 +1,127 @@
+"""
+Excel-like data entry app in Streamlit.
+
+Run with:
+    pip install streamlit pandas openpyxl
+    streamlit run data_entry_app.py
+
+The core is st.data_editor — an editable grid that supports cell editing,
+keyboard navigation, and paste directly from Excel/Google Sheets.
+"""
+
+import io
+from datetime import date
+
+import pandas as pd
+import streamlit as st
+
+st.set_page_config(page_title="Data Entry", layout="wide")
+st.title("Data Entry")
+
+# ---------------------------------------------------------------------------
+# 1. Define the empty starting table (column names + dtypes).
+#    Giving each column the right dtype makes the editor use the right widget.
+# ---------------------------------------------------------------------------
+EMPTY = pd.DataFrame(
+    {
+        "patient_id": pd.Series(dtype="string"),
+        "visit_date": pd.Series(dtype="datetime64[ns]"),
+        "department": pd.Series(dtype="string"),
+        "score": pd.Series(dtype="Int64"),   # nullable integer
+        "billable": pd.Series(dtype="bool"),
+    }
+)
+
+# Persist the table across reruns so edits aren't lost.
+if "data" not in st.session_state:
+    st.session_state.data = EMPTY.copy()
+
+# ---------------------------------------------------------------------------
+# 2. Column configuration — this is what makes each column behave like a
+#    typed Excel column (dropdowns, date pickers, number formatting, etc.).
+# ---------------------------------------------------------------------------
+column_config = {
+    "patient_id": st.column_config.TextColumn(
+        "Patient ID",
+        required=True,
+        max_chars=20,
+        help="Unique identifier",
+    ),
+    "visit_date": st.column_config.DateColumn(
+        "Visit Date",
+        format="YYYY-MM-DD",
+        default=date.today(),
+    ),
+    "department": st.column_config.SelectboxColumn(
+        "Department",
+        options=["Cardiology", "Oncology", "Emergency", "Primary Care"],
+        required=True,
+    ),
+    "score": st.column_config.NumberColumn(
+        "Score",
+        min_value=0,
+        max_value=100,
+        step=1,
+        format="%d",
+    ),
+    "billable": st.column_config.CheckboxColumn("Billable", default=False),
+}
+
+# ---------------------------------------------------------------------------
+# 3. The editable grid. num_rows="dynamic" gives an empty "add row" line at the
+#    bottom and lets users delete selected rows — just like Excel.
+# ---------------------------------------------------------------------------
+edited = st.data_editor(
+    st.session_state.data,
+    column_config=column_config,
+    num_rows="dynamic",
+    use_container_width=True,
+    hide_index=True,
+    key="editor",
+)
+
+# ---------------------------------------------------------------------------
+# 4. Actions: validate, save to session, and export.
+# ---------------------------------------------------------------------------
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    if st.button("Save", type="primary", use_container_width=True):
+        # Simple validation example
+        problems = []
+        if edited["patient_id"].isna().any() or (edited["patient_id"] == "").any():
+            problems.append("Every row needs a Patient ID.")
+        if edited["patient_id"].duplicated().any():
+            problems.append("Patient IDs must be unique.")
+
+        if problems:
+            for p in problems:
+                st.error(p)
+        else:
+            st.session_state.data = edited.copy()
+            st.success(f"Saved {len(edited)} rows.")
+
+with col2:
+    st.download_button(
+        "Download CSV",
+        data=edited.to_csv(index=False).encode("utf-8"),
+        file_name="data.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+
+with col3:
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        edited.to_excel(writer, index=False, sheet_name="Data")
+    st.download_button(
+        "Download Excel",
+        data=buffer.getvalue(),
+        file_name="data.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True,
+    )
+
+# Live preview of what's currently in the grid
+with st.expander("Preview current data"):
+    st.dataframe(edited, use_container_width=True, hide_index=True)
